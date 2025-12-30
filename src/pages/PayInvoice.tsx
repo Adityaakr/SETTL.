@@ -463,27 +463,29 @@ export default function PayInvoice() {
               <Button variant="ghost" size="sm" onClick={copyPaymentLink} className="h-8 w-8 p-0">
                 <Copy className="h-3.5 w-3.5" />
               </Button>
-              {authenticated && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={async () => {
-                    try {
-                      await logout()
-                      toast.success('Logged out successfully')
-                      // Stay on the same page - user can reconnect their wallet to pay
-                    } catch (error: any) {
-                      console.error('Logout error:', error)
-                      toast.error('Failed to logout', {
-                        description: error?.message || 'Please try again'
-                      })
-                    }
-                  }}
-                  className="h-8 text-sm font-medium px-3 border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-600"
-                >
-                  Logout
-                </Button>
-              )}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={async () => {
+                  if (!authenticated) {
+                    toast.info('Not logged in')
+                    return
+                  }
+                  try {
+                    await logout()
+                    toast.success('Logged out successfully')
+                    // Stay on the same page - user can reconnect their wallet to pay
+                  } catch (error: any) {
+                    console.error('Logout error:', error)
+                    toast.error('Failed to logout', {
+                      description: error?.message || 'Please try again'
+                    })
+                  }
+                }}
+                className="h-8 text-sm font-semibold px-3 border-2 border-red-500 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:border-red-600 shadow-sm"
+              >
+                Logout
+              </Button>
               <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
                   <a
                     href={`https://explorer.testnet.mantle.xyz/address/${contractAddresses.InvoiceRegistry}`}
