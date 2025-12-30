@@ -224,7 +224,7 @@ export default function Dashboard() {
         <StatCard
           title="Reputation Score"
           value={isLoading ? "..." : score.toString()}
-          subtitle={isLoading ? "Loading..." : `Tier ${tierLabel}`}
+          subtitle={isLoading ? "Loading..." : `Tier ${effectiveTierLabel}`}
           icon={TrendingUp}
         />
       </motion.div>
@@ -374,7 +374,7 @@ export default function Dashboard() {
               <div className="mt-2 flex justify-between text-sm">
                 <span className="text-muted-foreground">Estimated APR</span>
                 <span className="font-medium">
-                  {tierLabel === 'A' ? '6-8%' : tierLabel === 'B' ? '8-12%' : '18%'}
+                  {effectiveTierLabel === 'A' ? '6-8%' : effectiveTierLabel === 'B' ? '8-12%' : '18%'}
                 </span>
               </div>
             </div>
