@@ -10,8 +10,7 @@
 <img width="1269" height="779" alt="Screenshot 2025-12-30 at 9 39 05 PM" src="https://github.com/user-attachments/assets/46b079b9-1275-4b71-b6b1-7f0399e5cf8d" />
 <img width="1703" height="960" alt="Screenshot 2025-12-30 at 9 41 44 PM" src="https://github.com/user-attachments/assets/e30f131a-d933-4f80-bc4e-d732ff400e72" />
 <img width="1710" height="865" alt="Screenshot 2025-12-30 at 9 39 44 PM" src="https://github.com/user-attachments/assets/827a1849-3966-4d44-ab04-3450ce99b902" />
-<img width="856" height="330" alt="Screenshot 2025-12-30 at 11 02 44 PM" src="https://github.com/user-attachments/assets/93921c86-ee07-47aa-b1b5-7082a8b447a6" />
-
+<img width="895" height="714" alt="Screenshot 2025-12-31 at 2 33 13 AM" src="https://github.com/user-attachments/assets/22284d59-2089-457d-a977-1592ed04547f" />
 
 SETTL is a Stripe-like invoice link that turns accounts receivable into RealFi rails on Mantle: businesses get paid in stablecoins, unlock instant financing against invoices/cashflows, and build an on-chain reputation that improves terms over time.
 
