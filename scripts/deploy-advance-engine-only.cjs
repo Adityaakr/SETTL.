@@ -1,45 +1,38 @@
-require("dotenv").config();
 const hre = require("hardhat");
 const fs = require("fs");
 const path = require("path");
+require("dotenv").config();
 
 /**
- * Deploy only AdvanceEngine contract with updated configuration
- * This script assumes all other contracts are already deployed
+ * Deploy only AdvanceEngine contract
+ * This script updates the AdvanceEngine contract without redeploying all contracts
  */
 async function main() {
   console.log("🚀 Deploying AdvanceEngine contract only...\n");
 
   const [deployer] = await hre.ethers.getSigners();
-  console.log("Deploying contracts with account:", deployer.address);
-  console.log("Account balance:", (await hre.ethers.provider.getBalance(deployer.address)).toString(), "wei\n");
+  console.log("Deploying with account:", deployer.address);
+  const balance = await hre.ethers.provider.getBalance(deployer.address);
+  console.log("Account balance:", hre.ethers.formatEther(balance), "ETH\n");
 
   // Load existing contract addresses from .env or contracts.json
   const contractsPath = path.join(__dirname, "..", "contracts.json");
   let existingContracts = {};
   
   if (fs.existsSync(contractsPath)) {
-    try {
-      const contractsData = JSON.parse(fs.readFileSync(contractsPath, "utf8"));
-      existingContracts = contractsData.contracts || {};
-    } catch (err) {
-      console.log("Could not read contracts.json, will use .env addresses");
-    }
+    const contractsData = JSON.parse(fs.readFileSync(contractsPath, "utf8"));
+    existingContracts = contractsData.contracts || {};
   }
 
-  // Get contract addresses from .env (priority) or contracts.json
-  const invoiceRegistryAddress = 
-    process.env.VITE_INVOICE_REGISTRY_ADDRESS || 
-    existingContracts.InvoiceRegistry;
-  const vaultAddress = 
-    process.env.VITE_VAULT_ADDRESS || 
-    existingContracts.Vault;
+  // Get addresses from .env or existing contracts
+  const invoiceRegistryAddress = process.env.VITE_INVOICE_REGISTRY_ADDRESS || existingContracts.InvoiceRegistry;
+  const vaultAddress = process.env.VITE_VAULT_ADDRESS || existingContracts.Vault;
 
   if (!invoiceRegistryAddress || !vaultAddress) {
-    throw new Error("Missing required contract addresses. Please ensure InvoiceRegistry and Vault are deployed and addresses are in .env");
+    throw new Error("Missing required contract addresses. Please set VITE_INVOICE_REGISTRY_ADDRESS and VITE_VAULT_ADDRESS in .env");
   }
 
-  console.log("Using existing contract addresses:");
+  console.log("Using existing contracts:");
   console.log("  InvoiceRegistry:", invoiceRegistryAddress);
   console.log("  Vault:", vaultAddress);
   console.log("");
@@ -52,65 +45,74 @@ async function main() {
     vaultAddress,
     deployer.address // defaultAdmin
   );
+
   await advanceEngine.waitForDeployment();
   const advanceEngineAddress = await advanceEngine.getAddress();
+
   console.log("✅ AdvanceEngine deployed to:", advanceEngineAddress);
+  console.log("");
 
-  // Get Vault contract to grant BORROWER_ROLE to AdvanceEngine
-  console.log("\n🔐 Setting up roles...");
-  const Vault = await hre.ethers.getContractFactory("Vault");
-  const vault = Vault.attach(vaultAddress);
-  
-  const BORROWER_ROLE = await vault.BORROWER_ROLE();
-  const hasBorrowerRole = await vault.hasRole(BORROWER_ROLE, advanceEngineAddress);
-  
-  if (!hasBorrowerRole) {
-    console.log("Granting BORROWER_ROLE to AdvanceEngine...");
-    const grantTx = await vault.grantRole(BORROWER_ROLE, advanceEngineAddress);
-    await grantTx.wait();
-    console.log("✅ BORROWER_ROLE granted");
-  } else {
-    console.log("✅ AdvanceEngine already has BORROWER_ROLE");
+  // Update contracts.json with new AdvanceEngine address
+  const network = await hre.ethers.provider.getNetwork();
+  const contractsData = {
+    network: network.name,
+    chainId: network.chainId.toString(),
+    deployer: deployer.address,
+    contracts: {
+      ...existingContracts,
+      AdvanceEngine: advanceEngineAddress,
+    },
+    deployedAt: new Date().toISOString(),
+  };
+
+  fs.writeFileSync(contractsPath, JSON.stringify(contractsData, null, 2));
+  console.log("✅ Updated contracts.json");
+
+  // Print .env update instruction
+  console.log("\n📋 Update your .env file with the new AdvanceEngine address:");
+  console.log(`VITE_ADVANCE_ENGINE_ADDRESS=${advanceEngineAddress}`);
+  console.log("");
+
+  // Grant ADVANCE_ENGINE_ROLE to AdvanceEngine in InvoiceRegistry
+  console.log("🔐 Granting ADVANCE_ENGINE_ROLE to AdvanceEngine...");
+  try {
+    const InvoiceRegistry = await hre.ethers.getContractFactory("InvoiceRegistry");
+    const invoiceRegistry = InvoiceRegistry.attach(invoiceRegistryAddress);
+    
+    const ADVANCE_ENGINE_ROLE = hre.ethers.keccak256(
+      hre.ethers.toUtf8Bytes("ADVANCE_ENGINE_ROLE")
+    );
+    
+    const tx = await invoiceRegistry.grantRole(ADVANCE_ENGINE_ROLE, advanceEngineAddress);
+    await tx.wait();
+    console.log("✅ Granted ADVANCE_ENGINE_ROLE to AdvanceEngine");
+  } catch (err) {
+    console.error("⚠️  Error granting ADVANCE_ENGINE_ROLE:", err.message);
+    console.log("   You may need to grant this role manually");
   }
 
-  // Get InvoiceRegistry contract to grant ADVANCE_ENGINE_ROLE
-  const InvoiceRegistry = await hre.ethers.getContractFactory("InvoiceRegistry");
-  const invoiceRegistry = InvoiceRegistry.attach(invoiceRegistryAddress);
-  
-  const ADVANCE_ENGINE_ROLE = await invoiceRegistry.ADVANCE_ENGINE_ROLE();
-  const hasAdvanceEngineRole = await invoiceRegistry.hasRole(ADVANCE_ENGINE_ROLE, advanceEngineAddress);
-  
-  if (!hasAdvanceEngineRole) {
-    console.log("Granting ADVANCE_ENGINE_ROLE to AdvanceEngine...");
-    const grantTx = await invoiceRegistry.grantRole(ADVANCE_ENGINE_ROLE, advanceEngineAddress);
-    await grantTx.wait();
-    console.log("✅ ADVANCE_ENGINE_ROLE granted");
-  } else {
-    console.log("✅ AdvanceEngine already has ADVANCE_ENGINE_ROLE");
+  // Grant BORROWER_ROLE to AdvanceEngine in Vault
+  console.log("🔐 Granting BORROWER_ROLE to AdvanceEngine...");
+  try {
+    const Vault = await hre.ethers.getContractFactory("Vault");
+    const vault = Vault.attach(vaultAddress);
+    
+    const BORROWER_ROLE = hre.ethers.keccak256(
+      hre.ethers.toUtf8Bytes("BORROWER_ROLE")
+    );
+    
+    const tx = await vault.grantRole(BORROWER_ROLE, advanceEngineAddress);
+    await tx.wait();
+    console.log("✅ Granted BORROWER_ROLE to AdvanceEngine");
+  } catch (err) {
+    console.error("⚠️  Error granting BORROWER_ROLE:", err.message);
+    console.log("   You may need to grant this role manually");
   }
 
-  // Update contracts.json if it exists
-  if (fs.existsSync(contractsPath)) {
-    try {
-      const contractsData = JSON.parse(fs.readFileSync(contractsPath, "utf8"));
-      contractsData.contracts.AdvanceEngine = advanceEngineAddress;
-      contractsData.updatedAt = new Date().toISOString();
-      fs.writeFileSync(contractsPath, JSON.stringify(contractsData, null, 2));
-      console.log("\n✅ Updated contracts.json with new AdvanceEngine address");
-    } catch (err) {
-      console.log("\n⚠️  Could not update contracts.json:", err.message);
-    }
-  }
-
-  console.log("\n" + "=".repeat(60));
-  console.log("📋 Deployment Summary");
-  console.log("=".repeat(60));
-  console.log("\n✅ AdvanceEngine deployed successfully!");
-  console.log("\nContract Addresses:");
-  console.log("  AdvanceEngine:", advanceEngineAddress);
-  console.log("\n⚠️  IMPORTANT: Update your .env file with the new AdvanceEngine address:");
-  console.log(`  VITE_ADVANCE_ENGINE_ADDRESS=${advanceEngineAddress}`);
-  console.log("\n" + "=".repeat(60));
+  console.log("\n✅ Deployment complete!");
+  console.log("\n📝 Next steps:");
+  console.log("1. Update .env file with: VITE_ADVANCE_ENGINE_ADDRESS=" + advanceEngineAddress);
+  console.log("2. Restart your frontend to load the new contract address");
 }
 
 main()
@@ -119,4 +121,3 @@ main()
     console.error(error);
     process.exit(1);
   });
-
