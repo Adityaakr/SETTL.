@@ -42,9 +42,16 @@ const item = {
 }
 
 export default function Dashboard() {
-  const { invoices, isLoading: isLoadingInvoices } = useSellerInvoicesWithData()
-  const { score, tierLabel, stats, isLoading: isLoadingReputation } = useReputation()
-  const { balance: usdcBalance, isLoading: isLoadingBalance } = useTokenBalance()
+  const { invoices, isLoading: isLoadingInvoices, error: invoiceError } = useSellerInvoicesWithData()
+  const { score, tierLabel, stats, isLoading: isLoadingReputation, error: reputationError } = useReputation()
+  const { balance: usdcBalance, isLoading: isLoadingBalance, error: balanceError } = useTokenBalance()
+
+  // Log errors for debugging
+  useEffect(() => {
+    if (invoiceError) console.error('Dashboard: Invoice fetch error:', invoiceError)
+    if (reputationError) console.error('Dashboard: Reputation fetch error:', reputationError)
+    if (balanceError) console.error('Dashboard: Balance fetch error:', balanceError)
+  }, [invoiceError, reputationError, balanceError])
 
   // Calculate stats from invoices
   const statsData = useMemo(() => {

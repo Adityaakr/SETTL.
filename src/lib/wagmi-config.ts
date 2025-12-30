@@ -1,5 +1,5 @@
 import { createConfig } from '@privy-io/wagmi';
-import { http, webSocket, fallback } from 'viem';
+import { http, fallback } from 'viem';
 
 // Mantle Sepolia Testnet configuration (matches privy-config.ts)
 export const mantleTestnet = {
@@ -17,9 +17,6 @@ export const mantleTestnet = {
         'https://rpc.sepolia.mantle.xyz',
         'https://mantle-sepolia.drpc.org',
       ],
-      webSocket: [
-        'wss://mantle-sepolia.drpc.org',
-      ],
     },
   },
   blockExplorers: {
@@ -32,7 +29,7 @@ export const mantleTestnet = {
 } as const;
 
 // Create Wagmi config using Privy's createConfig
-// Use HTTP for both reads and writes (more reliable, WebSocket can be unstable)
+// Use HTTP only (most reliable, WebSocket can cause connection issues)
 // fallback provides automatic failover between endpoints
 export const wagmiConfig = createConfig({
   chains: [mantleTestnet],
@@ -43,15 +40,19 @@ export const wagmiConfig = createConfig({
         batch: {
           multicall: true, // Enable batch multicall for better performance
         },
+        fetchOptions: {
+          timeout: 10000, // 10 second timeout
+        },
       }),
       // Fallback: dRPC HTTP endpoint
       http('https://mantle-sepolia.drpc.org', {
         batch: {
           multicall: true,
         },
+        fetchOptions: {
+          timeout: 10000,
+        },
       }),
-      // WebSocket as last resort (can be unreliable)
-      webSocket('wss://mantle-sepolia.drpc.org'),
     ]),
   },
 });
