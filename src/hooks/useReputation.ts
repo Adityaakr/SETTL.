@@ -86,14 +86,17 @@ export function useReputation(sellerAddress?: string) {
       // This ensures we show the latest on-chain value, but frontend updates take priority during real-time events
       if (frontendScore === null) {
         // Initialize from chain if not set
+        console.log('🎯 Initializing frontend score from chain:', chainScore);
         setFrontendScore(chainScore);
       } else if (chainScore > frontendScore) {
         // Update if chain score is higher (more authoritative)
+        console.log('🎯 Updating frontend score from chain:', chainScore, '(was:', frontendScore, ')');
         setFrontendScore(chainScore);
       }
       // If frontendScore > chainScore, keep frontend score (it's a recent update that hasn't synced yet)
     } else if (frontendScore === null) {
       // Initialize to 450 (Tier C starting point) if no chain data yet
+      console.log('🎯 Initializing frontend score to default 450');
       setFrontendScore(450);
     }
   }, [score, frontendScore]);
@@ -108,6 +111,18 @@ export function useReputation(sellerAddress?: string) {
       setFrontendTier(calculatedTier);
     }
   }, [tier, frontendTier, frontendScore]);
+
+  // Debug: Log score changes
+  useEffect(() => {
+    const displayScore = frontendScore !== null ? frontendScore : (score ? Number(score) : 0);
+    console.log('📊 Reputation score state:', {
+      frontendScore,
+      chainScore: score ? Number(score) : null,
+      displayScore,
+      frontendTier,
+      chainTier: tier,
+    });
+  }, [frontendScore, score, frontendTier, tier]);
 
   // Helper function to calculate score increment
   const calculateScoreIncrement = (invoiceAmount: bigint): number => {
