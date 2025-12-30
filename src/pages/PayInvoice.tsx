@@ -517,18 +517,51 @@ export default function PayInvoice() {
                 variant="outline" 
                 size="sm" 
                 onClick={async () => {
-                  if (!authenticated) {
+                  if (!authenticated && !address && wallets.length === 0) {
                     toast.info('Not logged in')
                     return
                   }
                   try {
+                    console.log('🔴 Starting logout process...')
+                    
+                    // First, try to disconnect any connected wallets
+                    try {
+                      const ethereum = (window as any).ethereum
+                      if (ethereum && ethereum.isMetaMask && ethereum.request) {
+                        // Try to disconnect MetaMask if connected
+                        try {
+                          await ethereum.request({ 
+                            method: 'wallet_revokePermissions',
+                            params: [{ eth_accounts: {} }]
+                          }).catch(() => {
+                            // Ignore if not supported
+                          })
+                        } catch (e) {
+                          console.log('MetaMask disconnect not needed:', e)
+                        }
+                      }
+                    } catch (e) {
+                      console.log('Wallet disconnect attempt failed:', e)
+                    }
+                    
+                    // Logout from Privy
+                    console.log('🔴 Calling Privy logout...')
                     await logout()
+                    
+                    // Give Privy a moment to process
+                    await new Promise(resolve => setTimeout(resolve, 500))
+                    
+                    console.log('✅ Logout successful')
                     toast.success('Logged out successfully')
+                    
+                    // Optionally clear local storage if needed (but keep invoice metadata)
+                    // localStorage.clear() // Don't clear as it might clear invoice data
+                    
                     // Stay on the same page - user can reconnect their wallet to pay
                   } catch (error: any) {
-                    console.error('Logout error:', error)
+                    console.error('❌ Logout error:', error)
                     toast.error('Failed to logout', {
-                      description: error?.message || 'Please try again'
+                      description: error?.message || 'Please try again or refresh the page'
                     })
                   }
                 }}
