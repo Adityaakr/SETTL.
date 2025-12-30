@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useInvoice } from "@/hooks/useInvoice"
 import { useInvoiceNFT } from "@/hooks/useInvoiceNFT"
-import { useReadContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi"
+import { useReadContract, useWaitForTransactionReceipt, usePublicClient, useChainId, useSwitchChain } from "wagmi"
 import { useSendTransaction, useWallets, usePrivy } from "@privy-io/react-auth"
 import { usePrivyAccount } from "@/hooks/usePrivyAccount"
 import { contractAddresses } from "@/lib/contracts"
@@ -31,6 +31,7 @@ import { DemoUSDCABI, SettlementRouterABI, InvoiceRegistryABI } from "@/lib/abis
 import { formatUnits, parseUnits, isAddress, encodeFunctionData } from "viem"
 import { toast } from "sonner"
 import { Link } from "react-router-dom"
+import { mantleTestnet } from "@/lib/wagmi-config"
 
 const STATUS_LABELS = {
   0: "Issued",
@@ -51,12 +52,39 @@ export default function PayInvoice() {
   const { wallets } = useWallets()
   const { login, logout, ready, authenticated } = usePrivy()
   const publicClient = usePublicClient({ chainId: 5003 })
+  const chainId = useChainId()
+  const { switchChain } = useSwitchChain()
   
   // Find the wallet that matches the currently connected address
   // This ensures we use the wallet the user actually connected (could be MetaMask, Privy, etc.)
   const connectedWallet = address 
     ? wallets.find(w => w.address.toLowerCase() === address.toLowerCase()) || wallets[0]
     : wallets[0]
+  
+  // Check if user is on the wrong network and prompt to switch
+  useEffect(() => {
+    if (authenticated && address && chainId !== 5003 && switchChain) {
+      // User is connected but on wrong network
+      toast.error("Wrong Network", {
+        description: "Please switch to Mantle Sepolia Testnet (Chain ID: 5003) to continue.",
+        duration: 5000,
+        action: {
+          label: "Switch Network",
+          onClick: () => {
+            try {
+              switchChain({ chainId: 5003 })
+            } catch (error: any) {
+              console.error("Failed to switch chain:", error)
+              toast.error("Failed to switch network", {
+                description: "Please manually switch to Mantle Sepolia Testnet in MetaMask. Add network with Chain ID: 5003",
+                duration: 8000,
+              })
+            }
+          },
+        },
+      })
+    }
+  }, [authenticated, address, chainId, switchChain])
   
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("privy")
   const [cardNumber, setCardNumber] = useState("")
