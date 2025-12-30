@@ -37,9 +37,10 @@ contract AdvanceEngine is IAdvanceEngine, AccessControl {
     /**
      * @notice Request an advance on an invoice
      * @param invoiceId Invoice ID to finance
-     * @param ltvBps Loan-to-value in basis points (e.g., 7500 = 75%)
+     * @param ltvBps Loan-to-value in basis points (e.g., 9000 = 90% for Tier A, 5500 = 55% for Tier B, 3500 = 35% for Tier C)
      * @param aprBps APR in basis points (e.g., 1000 = 10%)
      * @return advanceAmount Amount sent to seller
+     * @dev Frontend enforces tier-based LTV limits: Tier A = 90%, Tier B = 55%, Tier C = 35%
      */
     function requestAdvance(
         uint256 invoiceId,
