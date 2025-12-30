@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useInvoice } from "@/hooks/useInvoice"
 import { useInvoiceNFT } from "@/hooks/useInvoiceNFT"
-import { useReadContract, useWaitForTransactionReceipt } from "wagmi"
+import { useReadContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi"
 import { useSendTransaction, useWallets, usePrivy } from "@privy-io/react-auth"
 import { usePrivyAccount } from "@/hooks/usePrivyAccount"
 import { contractAddresses } from "@/lib/contracts"
@@ -43,6 +43,7 @@ export default function PayInvoice() {
   const { sendTransaction } = useSendTransaction()
   const { wallets } = useWallets()
   const { login, ready, authenticated } = usePrivy()
+  const publicClient = usePublicClient({ chainId: 5003 })
   
   const embeddedWallet = wallets.find(w => {
     const ct = w.connectorType?.toLowerCase() || '';
@@ -200,6 +201,53 @@ export default function PayInvoice() {
 
     setIsPaying(true)
     try {
+      // Simulate the transaction first to get better error messages
+      if (publicClient && address) {
+        try {
+          await publicClient.simulateContract({
+            account: address as `0x${string}`,
+            address: contractAddresses.SettlementRouter as `0x${string}`,
+            abi: SettlementRouterABI,
+            functionName: "payInvoice",
+            args: [BigInt(invoiceId)],
+          })
+        } catch (simError: any) {
+          console.error("Transaction simulation failed:", simError)
+          
+          // Extract error reason from simulation
+          const errorMessage = simError.message || simError.shortMessage || String(simError)
+          
+          if (errorMessage.includes("Not invoice buyer") || errorMessage.includes("buyer")) {
+            toast.error("Not the invoice buyer", {
+              description: "Only the buyer address can pay this invoice. Please connect the correct wallet.",
+            })
+            setIsPaying(false)
+            return
+          } else if (errorMessage.includes("Already cleared") || errorMessage.includes("cleared")) {
+            toast.error("Invoice already cleared", {
+              description: "This invoice has already been paid and cleared.",
+            })
+            setIsPaying(false)
+            return
+          } else if (errorMessage.includes("allowance") || errorMessage.includes("ERC20")) {
+            toast.error("Insufficient USDC allowance", {
+              description: "Please approve USDC spending first. The approval may still be processing.",
+            })
+            refetchAllowance()
+            setIsPaying(false)
+            return
+          } else if (errorMessage.includes("balance") || errorMessage.includes("insufficient funds")) {
+            toast.error("Insufficient USDC balance", {
+              description: `You don't have enough USDC to pay this invoice. Required: $${amountDisplay.toLocaleString()}`,
+            })
+            setIsPaying(false)
+            return
+          }
+          // If simulation fails with unknown error, continue to try actual transaction
+          // (sometimes simulation can fail even when transaction would succeed)
+        }
+      }
+
       const data = encodeFunctionData({
         abi: SettlementRouterABI,
         functionName: "payInvoice",
