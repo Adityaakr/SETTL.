@@ -244,7 +244,9 @@ export function generateInvoicePDF(data: InvoicePDFData) {
     
     doc.setFont('helvetica', 'normal')
     doc.text('Invoice Amount', leftStart + 2, yPos)
-    doc.text(item.description || `Payment for ${data.invoiceNumber || `INV-${data.invoiceId.padStart(6, '0')}`}`, leftStart + 45, yPos, { maxWidth: 45 })
+    // invoiceNum is defined at the top, use it here
+    const paymentDesc = item.description || `Payment for ${invoiceNum.replace('INV-', 'INV-')}`
+    doc.text(paymentDesc, leftStart + 45, yPos, { maxWidth: 45 })
     doc.text(String(item.quantity || 1), leftStart + 95, yPos)
     doc.text(`$${item.price || data.amountFormatted}`, leftStart + 125, yPos)
     doc.setFont('helvetica', 'bold')
