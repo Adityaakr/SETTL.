@@ -12,13 +12,12 @@ export const mantleTestnet = {
   },
   rpcUrls: {
     default: {
-      // Multiple RPC endpoints for redundancy and failover
+      // Primary RPC: Alchemy
       http: [
-        'https://rpc.sepolia.mantle.xyz',
-        'https://mantle-sepolia.drpc.org',
+        'https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
       ],
       webSocket: [
-        'wss://mantle-sepolia.drpc.org',
+        'wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
       ],
     },
   },
@@ -41,16 +40,8 @@ export const wagmiConfig = createConfig({
   chains: [mantleTestnet],
   transports: {
     [mantleTestnet.id]: fallback([
-      // Primary: HTTP endpoints (most reliable)
-      // Primary HTTP: Mantle official RPC
-      http('https://rpc.sepolia.mantle.xyz', {
-        batch: {
-          wait: 50,
-          batchSize: 10,
-        },
-      }),
-      // Secondary HTTP: dRPC endpoint (backup)
-      http('https://mantle-sepolia.drpc.org', {
+      // Primary: Alchemy RPC (HTTP)
+      http('https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX', {
         batch: {
           wait: 50,
           batchSize: 10,
@@ -58,7 +49,7 @@ export const wagmiConfig = createConfig({
       }),
       // Optional: WebSocket for event subscriptions (will fallback to HTTP if fails)
       // Only attempt WebSocket for real-time subscriptions
-      webSocket('wss://mantle-sepolia.drpc.org', {
+      webSocket('wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX', {
         reconnect: true,
       }),
     ], {

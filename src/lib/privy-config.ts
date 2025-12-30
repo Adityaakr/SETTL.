@@ -11,25 +11,23 @@ const mantleTestnetChain = {
   },
   rpcUrls: {
     default: {
-      // RPC endpoints for writes/transactions
+      // RPC endpoints: Alchemy
       http: [
-        'https://rpc.sepolia.mantle.xyz',
-        'https://mantle-sepolia.drpc.org',
+        'https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
       ],
       // WebSocket for reads/subscriptions (data fetching)
       webSocket: [
-        'wss://mantle-sepolia.drpc.org',
+        'wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
       ],
     },
     public: {
-      // RPC endpoints for writes/transactions
+      // RPC endpoints: Alchemy
       http: [
-        'https://rpc.sepolia.mantle.xyz',
-        'https://mantle-sepolia.drpc.org',
+        'https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
       ],
       // WebSocket for reads/subscriptions (data fetching)
       webSocket: [
-        'wss://mantle-sepolia.drpc.org',
+        'wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
       ],
     },
   },
