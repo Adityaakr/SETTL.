@@ -135,25 +135,28 @@ export function useReputation(sellerAddress?: string) {
     // Mark as counted
     clearedInvoicesRef.current.add(invoiceId);
     
-    // Calculate new score
+    // Calculate new score using functional setState to ensure we use latest values
     const increment = calculateScoreIncrement(invoiceAmount);
-    const currentScore = frontendScore ?? (score ? Number(score) : 450);
-    const newScore = Math.min(1000, currentScore + increment); // Cap at 1000
-    const newTier = calculateTier(newScore);
+    setFrontendScore(prevScore => {
+      const currentScore = prevScore !== null ? prevScore : (score ? Number(score) : 450);
+      const newScore = Math.min(1000, currentScore + increment); // Cap at 1000
+      const newTier = calculateTier(newScore);
 
-    console.log('🚀 Frontend reputation update:', {
-      invoiceId,
-      invoiceAmount: formatUnits(invoiceAmount, 6),
-      increment,
-      oldScore: currentScore,
-      newScore,
-      oldTier: frontendTier ?? (tier as ReputationTier ?? 0),
-      newTier,
+      console.log('🚀 Frontend reputation update:', {
+        invoiceId,
+        invoiceAmount: formatUnits(invoiceAmount, 6),
+        increment,
+        oldScore: currentScore,
+        newScore,
+        oldTier: frontendTier ?? (tier as ReputationTier ?? 0),
+        newTier,
+      });
+
+      // Update tier when score changes
+      setFrontendTier(newTier);
+      
+      return newScore;
     });
-
-    // Update frontend state immediately
-    setFrontendScore(newScore);
-    setFrontendTier(newTier);
   };
 
   // Helper function to trigger immediate refetch of all reputation data
