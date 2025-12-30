@@ -319,7 +319,7 @@ export function useUSDCAllowance(spender?: string) {
     args: address && spender ? [address, spender as `0x${string}`] : undefined,
     query: {
       enabled: !!address && !!spender && !!contractAddresses.DemoUSDC,
-      refetchInterval: 15000, // Reduced frequency to avoid rate limits
+      refetchInterval: false, // Disable polling - rely on event subscriptions
     },
   });
 

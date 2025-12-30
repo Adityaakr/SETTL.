@@ -347,7 +347,7 @@ export function useSellerInvoices(sellerAddress?: string) {
     args: seller ? [seller as `0x${string}`] : undefined,
     query: {
       enabled: !!seller && !!contractAddresses.InvoiceRegistry,
-      refetchInterval: 10000, // Poll every 10 seconds for invoice updates
+      refetchInterval: false, // Disable polling - rely on event subscriptions for real-time updates
     },
   });
 
