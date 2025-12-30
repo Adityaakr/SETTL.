@@ -479,7 +479,7 @@ export default function PayInvoice() {
                       })
                     }
                   }}
-                  className="h-8 text-sm font-medium px-3 border-border hover:bg-destructive/10 hover:text-destructive"
+                  className="h-8 text-sm font-medium px-3 border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-600"
                 >
                   Logout
                 </Button>
