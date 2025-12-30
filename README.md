@@ -82,14 +82,23 @@ graph TB
     SettlementRouter -->|Fee| Admin
     SettlementRouter -->|Remainder| Seller
     
-    style Seller fill:#e1f5ff
-    style Buyer fill:#e1f5ff
-    style LP fill:#fff4e1
-    style Admin fill:#ffe1f5
-    style InvoiceNFT fill:#d4edda
-    style Vault fill:#fff3cd
-    style SettlementRouter fill:#f8d7da
-    style Reputation fill:#d1ecf1
+    style Seller fill:#2563eb,stroke:#1e40af,stroke-width:2px,color:#fff
+    style Buyer fill:#2563eb,stroke:#1e40af,stroke-width:2px,color:#fff
+    style LP fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+    style Admin fill:#dc2626,stroke:#b91c1c,stroke-width:2px,color:#fff
+    style React fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff
+    style Privy fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+    style Wagmi fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+    style Reclaim fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+    style InvoiceRegistry fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+    style InvoiceNFT fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+    style Vault fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+    style USMTPlus fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+    style Staking fill:#06b6d4,stroke:#0891b2,stroke-width:2px,color:#fff
+    style AdvanceEngine fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+    style SettlementRouter fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+    style Reputation fill:#06b6d4,stroke:#0891b2,stroke-width:2px,color:#fff
+    style DemoUSDC fill:#6b7280,stroke:#4b5563,stroke-width:2px,color:#fff
 ```
 
 ### Invoice Lifecycle Flow
@@ -165,11 +174,19 @@ flowchart LR
     Withdraw --> Burn[Burn USMT+<br/>Receive USDC]
     Burn --> End([Exit])
     
-    style Deposit fill:#d4edda
-    style Receive fill:#fff3cd
-    style Stake fill:#d1ecf1
-    style Earn fill:#f8d7da
-    style Withdraw fill:#e1f5ff
+    style Start fill:#6b7280,stroke:#4b5563,stroke-width:2px,color:#fff
+    style Deposit fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+    style Receive fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+    style Choice fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff
+    style Stake fill:#06b6d4,stroke:#0891b2,stroke-width:2px,color:#fff
+    style Hold fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+    style ReceiveStake fill:#06b6d4,stroke:#0891b2,stroke-width:2px,color:#fff
+    style Earn fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+    style EarnSimple fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+    style WithdrawStake fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff
+    style Withdraw fill:#2563eb,stroke:#1e40af,stroke-width:2px,color:#fff
+    style Burn fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+    style End fill:#6b7280,stroke:#4b5563,stroke-width:2px,color:#fff
 ```
 
 ### Settlement Waterfall
@@ -196,11 +213,18 @@ flowchart TD
     Settlement --> UpdateStatus[Update Invoice Status<br/>Paid → Cleared]
     Settlement --> UpdateRep[Update Reputation<br/>Score + Tier]
     
-    style Payment fill:#e1f5ff
-    style Fee fill:#fff3cd
-    style Repay fill:#d4edda
-    style Remainder fill:#d1ecf1
-    style UpdateRep fill:#f8d7da
+    style Payment fill:#2563eb,stroke:#1e40af,stroke-width:2px,color:#fff
+    style Settlement fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+    style CalcFee fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff
+    style Fee fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+    style Check fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+    style CalcRepay fill:#06b6d4,stroke:#0891b2,stroke-width:2px,color:#fff
+    style NoRepay fill:#6b7280,stroke:#4b5563,stroke-width:2px,color:#fff
+    style Repay fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+    style CalcRemainder fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff
+    style Remainder fill:#06b6d4,stroke:#0891b2,stroke-width:2px,color:#fff
+    style UpdateStatus fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+    style UpdateRep fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
 ```
 
 ### Key Components
