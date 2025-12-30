@@ -444,6 +444,40 @@ export function useSellerInvoicesWithData(sellerAddress?: string) {
     eventName: 'InvoiceCleared',
     onLogs() {
       refetchIds();
+      // Also trigger a refetch of invoice data when cleared
+      // This ensures the invoice status updates immediately
+      setTimeout(() => {
+        const fetchInvoices = async () => {
+          if (!invoiceIds || invoiceIds.length === 0 || !contractAddresses.InvoiceRegistry || !publicClient) return;
+          try {
+            const invoicePromises = invoiceIds.map(async (invoiceId) => {
+              try {
+                const invoice = await publicClient.readContract({
+                  address: contractAddresses.InvoiceRegistry as `0x${string}`,
+                  abi: InvoiceRegistryABI,
+                  functionName: 'getInvoice',
+                  args: [invoiceId],
+                }) as Invoice;
+                return invoice as Invoice;
+              } catch (err) {
+                return null;
+              }
+            });
+            const fetchedInvoices = await Promise.all(invoicePromises);
+            const validInvoices = fetchedInvoices
+              .filter((inv): inv is Invoice => inv !== null)
+              .sort((a, b) => {
+                const aTime = Number(a.createdAt);
+                const bTime = Number(b.createdAt);
+                return bTime - aTime;
+              });
+            setInvoices(validInvoices);
+          } catch (err) {
+            console.error('Error refetching invoices after clear:', err);
+          }
+        };
+        fetchInvoices();
+      }, 2000); // Wait 2 seconds for transaction to finalize
     },
   });
 

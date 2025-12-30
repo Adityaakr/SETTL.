@@ -387,22 +387,69 @@ export default function InvoiceDetail() {
                     <span className="text-sm text-muted-foreground">Loading advance details...</span>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Advance Amount</p>
-                      <p className="font-semibold">
-                        ${parseFloat(formatUnits(advance.advanceAmount, 6)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
+                  <>
+                    <div className="grid grid-cols-3 gap-4 text-sm mb-4">
+                      <div>
+                        <p className="text-muted-foreground">Advance Amount</p>
+                        <p className="font-semibold">
+                          ${parseFloat(formatUnits(advance.advanceAmount, 6)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Received upfront</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Total Repayment</p>
+                        <p className="font-semibold text-orange-600 dark:text-orange-400">
+                          {(() => {
+                            const advanceAmount = parseFloat(formatUnits(advance.advanceAmount, 6))
+                            let totalRepayment = parseFloat(formatUnits(advance.totalRepayment, 6))
+                            
+                            // Recalculate using fixed APR (18% for Tier C) if applicable
+                            // Use the same formula as the contract: interest = principal * APR * (daysUntilDue / 365)
+                            if (fixedApr) {
+                              const requestedAtTimestamp = Number(advance.requestedAt)
+                              const dueDateTimestamp = Number(invoice.dueDate)
+                              const daysUntilDue = Math.max(0, Math.floor((dueDateTimestamp - requestedAtTimestamp) / 86400))
+                              const principal = advanceAmount
+                              const interest = (principal * fixedApr * daysUntilDue) / (100 * 365)
+                              totalRepayment = principal + interest
+                            }
+                            
+                            return `$${totalRepayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          })()}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Repaid on settlement</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Interest</p>
+                        <p className="font-semibold">
+                          {(() => {
+                            const advanceAmount = parseFloat(formatUnits(advance.advanceAmount, 6))
+                            let interest = parseFloat(formatUnits(advance.interest, 6))
+                            
+                            // Recalculate using fixed APR (18% for Tier C) if applicable
+                            // Use the same formula as the contract: interest = principal * APR * (daysUntilDue / 365)
+                            if (fixedApr) {
+                              const requestedAtTimestamp = Number(advance.requestedAt)
+                              const dueDateTimestamp = Number(invoice.dueDate)
+                              const daysUntilDue = Math.max(0, Math.floor((dueDateTimestamp - requestedAtTimestamp) / 86400))
+                              const principal = advanceAmount
+                              interest = (principal * fixedApr * daysUntilDue) / (100 * 365)
+                            }
+                            
+                            return `$${interest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          })()}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Cost of financing</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Total Repayment</p>
-                      <p className="font-semibold text-orange-600 dark:text-orange-400">
-                        {(() => {
+                    {/* Settlement Explanation */}
+                    <div className="mt-4 p-3 bg-blue-50/50 dark:bg-blue-950/10 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        <strong>How settlement works:</strong> When the buyer pays ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, the system automatically:
+                        <br />• Deducts protocol fee (~0.5%)
+                        <br />• Repays the advance + interest to the vault (${(() => {
                           const advanceAmount = parseFloat(formatUnits(advance.advanceAmount, 6))
                           let totalRepayment = parseFloat(formatUnits(advance.totalRepayment, 6))
-                          
-                          // Recalculate using fixed APR (18% for Tier C) if applicable
-                          // Use the same formula as the contract: interest = principal * APR * (daysUntilDue / 365)
                           if (fixedApr) {
                             const requestedAtTimestamp = Number(advance.requestedAt)
                             const dueDateTimestamp = Number(invoice.dueDate)
@@ -411,33 +458,12 @@ export default function InvoiceDetail() {
                             const interest = (principal * fixedApr * daysUntilDue) / (100 * 365)
                             totalRepayment = principal + interest
                           }
-                          
-                          return `$${totalRepayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        })()}
+                          return totalRepayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        })()})
+                        <br />• Sends the remainder to you
                       </p>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Interest</p>
-                      <p className="font-semibold">
-                        {(() => {
-                          const advanceAmount = parseFloat(formatUnits(advance.advanceAmount, 6))
-                          let interest = parseFloat(formatUnits(advance.interest, 6))
-                          
-                          // Recalculate using fixed APR (18% for Tier C) if applicable
-                          // Use the same formula as the contract: interest = principal * APR * (daysUntilDue / 365)
-                          if (fixedApr) {
-                            const requestedAtTimestamp = Number(advance.requestedAt)
-                            const dueDateTimestamp = Number(invoice.dueDate)
-                            const daysUntilDue = Math.max(0, Math.floor((dueDateTimestamp - requestedAtTimestamp) / 86400))
-                            const principal = advanceAmount
-                            interest = (principal * fixedApr * daysUntilDue) / (100 * 365)
-                          }
-                          
-                          return `$${interest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        })()}
-                      </p>
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
             )}

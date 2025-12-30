@@ -57,7 +57,10 @@ export default function Dashboard() {
       }
     }
 
-    // Outstanding (issued or financed)
+    // Outstanding (only issued or financed that haven't been paid/cleared)
+    // Status 0 = Issued, Status 1 = Financed (both are outstanding)
+    // Status 2 = Paid (being settled, should NOT be in outstanding)
+    // Status 3 = Cleared (settlement complete, should NOT be in outstanding)
     const outstandingInvoices = invoices.filter(
       inv => inv.status === 0 || inv.status === 1
     )
