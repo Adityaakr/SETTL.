@@ -22,7 +22,7 @@ contract Reputation is IReputation, AccessControl {
     
     // Score calculation constants
     uint256 private constant BASE_SCORE_INCREMENT = 20;  // Base points per cleared invoice (20 points per repayment)
-    uint256 private constant VOLUME_BONUS_DIVISOR = 1000000; // 1M USDC = 1 bonus point
+    uint256 private constant VOLUME_BONUS_DIVISOR = 1000000000000; // 1M USDC = 1 bonus point (1M * 1e6 decimals = 1e12)
     
     constructor(address defaultAdmin) {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
