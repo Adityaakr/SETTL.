@@ -37,7 +37,7 @@ export function useInvoice(invoiceId: bigint | string | undefined) {
     args: invoiceId ? [BigInt(invoiceId.toString())] : undefined,
     query: {
       enabled: !!invoiceId && !!contractAddresses.InvoiceRegistry,
-      refetchInterval: 15000, // Reduced frequency to avoid rate limits
+      refetchInterval: false, // Disable polling - rely on event subscriptions for real-time updates
     },
   });
 

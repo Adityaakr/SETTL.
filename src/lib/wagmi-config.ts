@@ -31,30 +31,45 @@ export const mantleTestnet = {
 } as const;
 
 // Create Wagmi config using Privy's createConfig
-// Strategy:
-// - HTTP prioritized for reliability (WebSocket can be unstable)
-// - Multiple HTTP endpoints with automatic failover
-// - WebSocket as optional for event subscriptions (will fall back to HTTP polling)
-// - Robust error handling and retries
+// Optimized RPC Strategy:
+// - WebSocket (WSS) for fast real-time event subscriptions (useWatchContractEvent)
+// - HTTP for reliable reads (useReadContract) and writes (transactions)
+// - Automatic fallback with multiple RPC endpoints for redundancy
+// - Batching and retry logic for optimal performance
 export const wagmiConfig = createConfig({
   chains: [mantleTestnet],
   transports: {
     [mantleTestnet.id]: fallback([
-      // Primary: Alchemy RPC (HTTP)
+      // Primary: WebSocket for event subscriptions (fastest for real-time data)
+      // Wagmi automatically uses WebSocket for useWatchContractEvent
+      webSocket('wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX', {
+        reconnect: true,
+        retryCount: 3,
+      }),
+      // Primary: HTTP for reads and writes (more reliable, required for transactions)
+      // Wagmi automatically uses HTTP for useReadContract and useSendTransaction
       http('https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX', {
+        batch: {
+          wait: 50, // Batch requests within 50ms
+          batchSize: 10, // Max 10 requests per batch
+        },
+        fetchOptions: {
+          timeout: 10000, // 10s timeout for HTTP requests
+        },
+      }),
+      // Fallback: Additional HTTP endpoint for redundancy
+      http('https://rpc.sepolia.mantle.xyz', {
         batch: {
           wait: 50,
           batchSize: 10,
         },
-      }),
-      // Optional: WebSocket for event subscriptions (will fallback to HTTP if fails)
-      // Only attempt WebSocket for real-time subscriptions
-      webSocket('wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX', {
-        reconnect: true,
+        fetchOptions: {
+          timeout: 10000,
+        },
       }),
     ], {
-      retryCount: 3, // Retry up to 3 times before failing
-      rank: true, // Rank by response time
+      retryCount: 2, // Retry up to 2 times before failing
+      rank: true, // Rank by response time (fastest first)
     }),
   },
 });

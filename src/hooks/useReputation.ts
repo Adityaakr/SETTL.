@@ -52,7 +52,7 @@ export function useReputation(sellerAddress?: string) {
     args: seller ? [seller as `0x${string}`] : undefined,
     query: {
       enabled: !!seller && !!contractAddresses.Reputation,
-      refetchInterval: 30000, // Background polling every 30s
+      refetchInterval: false, // Disable polling - rely on event subscriptions for real-time updates
     },
   });
 
@@ -63,7 +63,7 @@ export function useReputation(sellerAddress?: string) {
     args: seller ? [seller as `0x${string}`] : undefined,
     query: {
       enabled: !!seller && !!contractAddresses.Reputation,
-      refetchInterval: 30000, // Background polling every 30s
+      refetchInterval: false, // Disable polling - rely on event subscriptions for real-time updates
     },
   });
 
@@ -74,7 +74,7 @@ export function useReputation(sellerAddress?: string) {
     args: seller ? [seller as `0x${string}`] : undefined,
     query: {
       enabled: !!seller && !!contractAddresses.Reputation,
-      refetchInterval: 30000, // Background polling every 30s
+      refetchInterval: false, // Disable polling - rely on event subscriptions for real-time updates
     },
   });
 
