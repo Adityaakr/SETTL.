@@ -177,12 +177,23 @@ export function useDepositVault() {
         throw enhancedError;
       }
       
-      if (errorMsgLower.includes('execution reverted') || 
-          errorMsgLower.includes('transferfrom') ||
-          errorMsgLower.includes('allowance') ||
-          errorMsgLower.includes('insufficient allowance')) {
+      // Check for allowance issues first (most common)
+      if (errorMsgLower.includes('allowance') ||
+          errorMsgLower.includes('insufficient allowance') ||
+          errorMsgLower.includes('transferfrom')) {
         const enhancedError = new Error(
           'Insufficient allowance. Please approve USDC spending for the Vault contract first, then try depositing again.'
+        );
+        enhancedError.cause = err;
+        throw enhancedError;
+      }
+      
+      // Check for execution reverted (could be allowance OR missing MINTER_ROLE)
+      if (errorMsgLower.includes('execution reverted')) {
+        const enhancedError = new Error(
+          'Transaction reverted. This could be due to:\n' +
+          '1. Missing USDC approval - Click "Approve USDC" button first\n' +
+          '2. Missing MINTER_ROLE - Vault may not have permission to mint USMT+. Run: npm run fix:vault-minter'
         );
         enhancedError.cause = err;
         throw enhancedError;
