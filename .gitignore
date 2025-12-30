@@ -51,5 +51,8 @@ contracts.json
 !README.md
 !INTRO.md
 
+# npm config (keep .npmrc for build configuration)
+# .npmrc
+
 # npm config
 .npmrc
