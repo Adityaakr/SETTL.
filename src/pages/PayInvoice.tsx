@@ -173,6 +173,21 @@ export default function PayInvoice() {
       return
     }
 
+    // Pre-flight checks
+    if (invoice.status === 3) {
+      toast.error("Invoice already cleared", {
+        description: "This invoice has already been paid and cleared.",
+      })
+      return
+    }
+
+    if (address?.toLowerCase() !== invoice.buyer.toLowerCase()) {
+      toast.error("Not the invoice buyer", {
+        description: "Only the buyer address can pay this invoice.",
+      })
+      return
+    }
+
     setIsPaying(true)
     try {
       const data = encodeFunctionData({
@@ -199,8 +214,26 @@ export default function PayInvoice() {
       setPayHash(result.hash)
       toast.success("Payment transaction submitted!")
     } catch (error: any) {
-      toast.error("Payment failed", {
-        description: error.message || "Please try again",
+      console.error("Payment error:", error)
+      
+      // Provide more specific error messages
+      let errorMessage = "Payment failed"
+      let errorDescription = error.message || "Please try again"
+      
+      if (error.message?.includes("Not invoice buyer") || error.message?.includes("buyer")) {
+        errorMessage = "Not the invoice buyer"
+        errorDescription = "Only the buyer address can pay this invoice. Please connect the correct wallet."
+      } else if (error.message?.includes("Already cleared") || error.message?.includes("cleared")) {
+        errorMessage = "Invoice already cleared"
+        errorDescription = "This invoice has already been paid and cleared."
+      } else if (error.message?.includes("Execution reverted")) {
+        errorMessage = "Transaction failed"
+        errorDescription = "The transaction was rejected. Please ensure you're the buyer and the invoice is not already paid."
+      }
+      
+      toast.error(errorMessage, {
+        description: errorDescription,
+        duration: 8000,
       })
     } finally {
       setIsPaying(false)
