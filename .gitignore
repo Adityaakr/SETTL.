@@ -50,3 +50,6 @@ contracts.json
 *.md
 !README.md
 !INTRO.md
+
+# npm config
+.npmrc
