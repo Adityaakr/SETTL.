@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useInvoice } from "@/hooks/useInvoice"
 import { useReadContract, useWaitForTransactionReceipt } from "wagmi"
-import { useSendTransaction, useWallets } from "@privy-io/react-auth"
+import { useSendTransaction, useWallets, usePrivy } from "@privy-io/react-auth"
 import { usePrivyAccount } from "@/hooks/usePrivyAccount"
 import { contractAddresses } from "@/lib/contracts"
 import { DemoUSDCABI, SettlementRouterABI } from "@/lib/abis"
@@ -37,6 +37,7 @@ export default function PayInvoice() {
   const { invoice, isLoading: isLoadingInvoice } = useInvoice(invoiceId)
   const { sendTransaction } = useSendTransaction()
   const { wallets } = useWallets()
+  const { login, ready, authenticated } = usePrivy()
   
   const embeddedWallet = wallets.find(w => {
     const ct = w.connectorType?.toLowerCase() || '';
@@ -380,9 +381,30 @@ export default function PayInvoice() {
 
             {!isBuyer && invoice.status < 2 && (
               <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
-                <p className="text-center text-muted-foreground">
-                  This invoice is for a different address. Please connect the buyer wallet.
-                </p>
+                <div className="text-center space-y-3">
+                  <p className="text-muted-foreground">
+                    This invoice is for a different address. Please connect the buyer wallet.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Buyer address: <span className="font-mono">{invoice.buyer}</span>
+                  </p>
+                  {ready && !authenticated && (
+                    <Button 
+                      onClick={() => login()}
+                      variant="hero"
+                      className="mt-2"
+                    >
+                      Connect Wallet
+                    </Button>
+                  )}
+                  {ready && authenticated && (
+                    <p className="text-sm text-muted-foreground">
+                      Connected: <span className="font-mono">{address}</span>
+                      <br />
+                      <span className="text-xs text-warning">Please switch to the buyer wallet to pay this invoice.</span>
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
