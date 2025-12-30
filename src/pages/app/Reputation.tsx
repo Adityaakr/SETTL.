@@ -50,9 +50,10 @@ export default function Reputation() {
   const { score, tierLabel, stats, isLoading: isLoadingReputation } = useReputation()
   const { invoices, isLoading: isLoadingInvoices } = useSellerInvoicesWithData()
   
-  // Calculate current score (use on-chain data or frontend tracking, default to 450 for new users)
+  // Use score from hook (includes frontend tracking updates for real-time score changes)
   // The useReputation hook now tracks cleared invoices in real-time and updates the score
-  const currentScore = score > 0 ? score : 450
+  // Default to 510 (Tier B) for now, then updates from there
+  const currentScore = score > 0 ? score : 510
   
   // Determine current tier based on score
   // Tier C: 0-450, Tier B: 500-850, Tier A: 850-1000
