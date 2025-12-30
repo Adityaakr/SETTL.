@@ -444,6 +444,36 @@ function EligibleInvoiceCard({
         throw new Error("Unable to verify invoice status. Please try again.")
       }
 
+      // CRITICAL: Check if invoice already has an advance FIRST (this is the most reliable check)
+      console.log(`[Advance Request] Checking if invoice ${invoice.invoiceId.toString()} already has an advance...`)
+      
+      try {
+        const AdvanceEngineABI = [
+          "function getAdvance(uint256 invoiceId) external view returns (tuple(uint256 invoiceId, address seller, uint256 advanceAmount, uint256 principal, uint256 interest, uint256 totalRepayment, uint256 requestedAt, bool repaid))"
+        ] as const
+        
+        const existingAdvanceCheck = await publicClient.readContract({
+          address: contractAddresses.AdvanceEngine as `0x${string}`,
+          abi: AdvanceEngineABI,
+          functionName: 'getAdvance',
+          args: [invoice.invoiceId],
+        }) as any
+        
+        if (existingAdvanceCheck && existingAdvanceCheck.advanceAmount > 0n) {
+          console.error(`[Advance Request] BLOCKED: Invoice ${invoice.invoiceId.toString()} already has an advance!`)
+          toast.error("Invoice already financed", {
+            description: `This invoice already has an advance of ${(Number(existingAdvanceCheck.advanceAmount) / 1e6).toFixed(2)} USDC. It cannot be financed again. Please refresh the page.`,
+            duration: 10000,
+          })
+          setIsRequesting(false)
+          return
+        }
+        console.log(`[Advance Request] Invoice ${invoice.invoiceId.toString()} does not have an existing advance`)
+      } catch (err: any) {
+        // getAdvance will revert if no advance exists, which is what we want
+        console.log(`[Advance Request] Invoice ${invoice.invoiceId.toString()} does not have an advance (expected revert)`)
+      }
+      
       // CRITICAL: Read invoice status directly from contract right before sending
       // This ensures we have the absolute latest on-chain status
       console.log(`[Advance Request] Starting status check for invoice ${invoice.invoiceId.toString()}`)
