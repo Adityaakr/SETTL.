@@ -349,7 +349,7 @@ export default function Dashboard() {
               <div className="mt-2 flex justify-between text-sm">
                 <span className="text-muted-foreground">Estimated APR</span>
                 <span className="font-medium">
-                  {tierLabel === 'A' ? '6-8%' : tierLabel === 'B' ? '8-12%' : '12-16%'}
+                  {tierLabel === 'A' ? '6-8%' : tierLabel === 'B' ? '8-12%' : '18%'}
                 </span>
               </div>
             </div>
