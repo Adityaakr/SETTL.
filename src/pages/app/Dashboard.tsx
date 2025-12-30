@@ -116,30 +116,33 @@ export default function Dashboard() {
     })
   }, [invoices])
 
-  // Calculate progress to next tier (simplified)
+  // Use score from hook (includes frontend tracking updates)
+  const displayScore = score > 0 ? score : 450
+  
+  // Calculate progress to next tier
   const progressToNextTier = useMemo(() => {
-    const tierThresholds = { C: 0, B: 500, A: 900 }
-    const currentThreshold = tierThresholds[tierLabel as keyof typeof tierThresholds] || 0
+    const tierThresholds = { C: 450, B: 500, A: 850 }
+    const currentThreshold = tierThresholds[tierLabel as keyof typeof tierThresholds] || 450
     const nextTier = tierLabel === 'C' ? 'B' : tierLabel === 'B' ? 'A' : null
     const nextThreshold = nextTier ? tierThresholds[nextTier as keyof typeof tierThresholds] : 1000
     
     if (!nextTier) return 100
     
-    const progress = ((score - currentThreshold) / (nextThreshold - currentThreshold)) * 100
+    const progress = ((displayScore - currentThreshold) / (nextThreshold - currentThreshold)) * 100
     return Math.max(0, Math.min(100, progress))
-  }, [score, tierLabel])
+  }, [displayScore, tierLabel])
 
   const pointsToNextTier = useMemo(() => {
-    const tierThresholds = { C: 0, B: 500, A: 900 }
-    const currentThreshold = tierThresholds[tierLabel as keyof typeof tierThresholds] || 0
+    const tierThresholds = { C: 450, B: 500, A: 850 }
+    const currentThreshold = tierThresholds[tierLabel as keyof typeof tierThresholds] || 450
     const nextTier = tierLabel === 'C' ? 'B' : tierLabel === 'B' ? 'A' : null
     const nextThreshold = nextTier ? tierThresholds[nextTier as keyof typeof tierThresholds] : 1000
     
     if (!nextTier) return 0
     
-    const needed = nextThreshold - score
+    const needed = nextThreshold - displayScore
     return Math.max(0, needed)
-  }, [score, tierLabel])
+  }, [displayScore, tierLabel])
 
   // Max LTV based on tier
   const maxLTV = useMemo(() => {
@@ -304,7 +307,7 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="mb-6 flex items-end gap-4">
-                  <span className="text-5xl font-bold gradient-text">{score}</span>
+                  <span className="text-5xl font-bold gradient-text">{displayScore}</span>
                   <span className="mb-2 text-sm text-muted-foreground">/ 1000</span>
                 </div>
 
