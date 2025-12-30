@@ -304,7 +304,7 @@ export default function InvoiceDetail() {
                 <tbody className="divide-y divide-border">
                   <tr>
                     <td className="px-4 py-4 text-sm text-gray-900 dark:text-foreground font-medium">Invoice Amount</td>
-                    <td className="px-4 py-4 text-sm text-gray-600 dark:text-muted-foreground">Payment for invoice INV-{invoice.invoiceId.toString().padStart(6, '0')}</td>
+                    <td className="px-4 py-4 text-sm text-gray-600 dark:text-muted-foreground">Payment for INV-{invoice.invoiceId.toString().padStart(6, '0')}</td>
                     <td className="px-4 py-4 text-sm text-center text-gray-900 dark:text-foreground">1</td>
                     <td className="px-4 py-4 text-sm text-right text-gray-900 dark:text-foreground">
                       ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
