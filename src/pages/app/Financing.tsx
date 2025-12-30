@@ -253,6 +253,7 @@ export default function Financing() {
                 index={index}
                 maxLTV={maxLTV}
                 aprRange={aprRange}
+                fixedApr={fixedApr}
                 availableLiquidity={availableLiquidity}
               />
             ))
@@ -414,6 +415,7 @@ function EligibleInvoiceCard({
   index, 
   maxLTV, 
   aprRange,
+  fixedApr,
   availableLiquidity 
 }: { 
   invoice: {
@@ -431,6 +433,7 @@ function EligibleInvoiceCard({
   index: number
   maxLTV: number
   aprRange: { min: number; max: number }
+  fixedApr?: number
   availableLiquidity: number
 }) {
   const { requestAdvance, isPending, isConfirming, error } = useRequestAdvance()
