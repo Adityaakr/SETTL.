@@ -794,7 +794,7 @@ export default function PayInvoice() {
                       {isPaying || isPaymentConfirming ? (
                         <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              {isPaying ? "Waiting..." : "Confirming..."}
+                              {isPaying ? "Waiting for wallet confirmation..." : "Waiting for on-chain confirmation..."}
                         </>
                       ) : (
                         <>
