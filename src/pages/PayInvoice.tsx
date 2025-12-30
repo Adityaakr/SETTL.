@@ -19,6 +19,7 @@ import {
   Download,
   MoreHorizontal
 } from "lucide-react"
+import { downloadInvoicePDF } from "@/lib/generateInvoicePDF"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useInvoice } from "@/hooks/useInvoice"
@@ -429,31 +430,34 @@ export default function PayInvoice() {
 
               // Check vault's totalBorrowed
               // Note: Vault tracks only principal borrowed, but we repay principal + interest
-              // The vault check requires: totalBorrowed >= repaymentAmount (which includes interest)
-              // This will fail if another invoice was already repaid, reducing totalBorrowed
+              // If vault's totalBorrowed is less than the principal borrowed for this invoice,
+              // it means this invoice's advance was already repaid (or the invoice was already paid)
               const vaultTotalBorrowed = await publicClient.readContract({
                 address: contractAddresses.Vault as `0x${string}`,
                 abi: VaultABI,
                 functionName: "getTotalBorrowed",
               }) as bigint
 
-              // If vault's totalBorrowed is less than the repayment amount (principal + interest),
-              // this advance was likely already repaid or partially repaid
-              if (vaultTotalBorrowed < repaymentAmount) {
-                // Check if at least the principal is still borrowed
-                if (vaultTotalBorrowed < principalBorrowed) {
-                  toast.error("Advance already repaid", {
-                    description: `The advance principal has been repaid. This invoice may have already been paid. Please refresh and check the invoice status.`,
-                    duration: 10000,
-                  })
-                } else {
-                  toast.error("Repayment amount mismatch", {
-                    description: `The vault cannot accept this repayment amount (${formatUnits(repaymentAmount, 6)} USDC) because it only has ${formatUnits(vaultTotalBorrowed, 6)} USDC borrowed. This may indicate the invoice was already paid. Please refresh the page.`,
-                    duration: 10000,
-                  })
-                }
+              // The vault must have at least the principal amount still borrowed
+              // If not, this advance was already repaid
+              if (vaultTotalBorrowed < principalBorrowed) {
+                toast.error("Advance already repaid", {
+                  description: `The advance principal (${formatUnits(principalBorrowed, 6)} USDC) has already been repaid to the vault. This invoice may have already been paid. Please refresh the page to see the updated status.`,
+                  duration: 10000,
+                })
                 setIsPaying(false)
                 return
+              }
+
+              // Warning: If vault's totalBorrowed is less than repayment amount (principal + interest),
+              // the transaction will revert with "Repay exceeds borrowed"
+              // This can happen if interest accumulated, but it's expected behavior
+              // We allow the transaction to proceed and let the contract handle the validation
+              if (vaultTotalBorrowed < repaymentAmount) {
+                // This is expected - repayment includes interest which is not tracked in vault's totalBorrowed
+                // However, we still need vault to have enough to accept the principal portion
+                // The contract will handle the actual validation
+                console.log(`[Payment] Repayment (${formatUnits(repaymentAmount, 6)} USDC) includes interest. Vault has ${formatUnits(vaultTotalBorrowed, 6)} USDC borrowed. Proceeding - contract will validate.`)
               }
             }
           } catch (advanceCheckError: any) {
@@ -618,6 +622,36 @@ export default function PayInvoice() {
               Back
             </Button>
             <div className="flex items-center gap-2">
+              {invoice && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    if (!invoice) return
+                    const createdAt = new Date(Number(invoice.createdAt) * 1000)
+                    downloadInvoicePDF({
+                      invoiceId: invoice.invoiceId.toString(),
+                      sellerName,
+                      buyerName,
+                      buyerAddress: invoice.buyer,
+                      sellerAddress: invoice.seller,
+                      amount: invoice.amount,
+                      amountFormatted: amountDisplay.toFixed(2),
+                      dueDate,
+                      createdAt,
+                      status: invoice.status.toString(),
+                      statusLabel: STATUS_LABELS[invoice.status as keyof typeof STATUS_LABELS],
+                      invoiceNumber: `INV-${invoice.invoiceId.toString().padStart(6, '0')}`,
+                      description: `Payment for INV-${invoice.invoiceId.toString().padStart(6, '0')}`,
+                    })
+                    toast.success("Invoice PDF downloaded")
+                  }}
+                  className="h-8 gap-1.5"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  PDF
+                </Button>
+              )}
               <Button variant="ghost" size="sm" onClick={copyPaymentLink} className="h-8 w-8 p-0">
                 <Copy className="h-3.5 w-3.5" />
               </Button>

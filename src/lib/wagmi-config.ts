@@ -14,8 +14,8 @@ export const mantleTestnet = {
     default: {
       // Multiple RPC endpoints for redundancy and failover
       http: [
-        'https://rpc.sepolia.mantle.xyz',
         'https://mantle-sepolia.drpc.org',
+        'https://rpc.sepolia.mantle.xyz',
       ],
       webSocket: [
         'wss://mantle-sepolia.drpc.org',

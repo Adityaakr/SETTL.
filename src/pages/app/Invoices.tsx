@@ -30,7 +30,8 @@ import { useSellerInvoicesWithData, Invoice, InvoiceStatus } from "@/hooks/useIn
 import { useInvoiceNFT } from "@/hooks/useInvoiceNFT"
 import { formatUnits } from "viem"
 import { contractAddresses } from "@/lib/contracts"
-import { Trash2 } from "lucide-react"
+import { Trash2, Download } from "lucide-react"
+import { downloadInvoicePDF } from "@/lib/generateInvoicePDF"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -348,6 +349,54 @@ export default function Invoices() {
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            try {
+                              // Get metadata from localStorage
+                              let metadata = { buyerName: '', sellerName: '' }
+                              try {
+                                const stored = localStorage.getItem(`invoice_metadata_${invoice.invoiceId}`)
+                                if (stored) {
+                                  metadata = JSON.parse(stored)
+                                }
+                              } catch (e) {
+                                console.log('No metadata found for invoice', invoice.invoiceId)
+                              }
+                              
+                              // Find the original invoice data from the invoices array
+                              const originalInvoice = invoices?.find(inv => inv.invoiceId === invoice.invoiceId)
+                              if (!originalInvoice) {
+                                toast.error("Invoice data not found")
+                                return
+                              }
+                              
+                              downloadInvoicePDF({
+                                invoiceId: invoice.invoiceId.toString(),
+                                sellerName: metadata.sellerName || 'SETTL. Business',
+                                buyerName: metadata.buyerName || `${invoice.buyer.slice(0, 6)}...${invoice.buyer.slice(-4)}`,
+                                buyerAddress: invoice.buyer,
+                                sellerAddress: originalInvoice.seller,
+                                amount: originalInvoice.amount,
+                                amountFormatted: invoice.amount.toFixed(2),
+                                dueDate: invoice.dueDate,
+                                createdAt: invoice.createdAt,
+                                status: invoice.status,
+                                statusLabel: invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1),
+                                invoiceNumber: invoice.id,
+                                description: `Payment for ${invoice.id}`,
+                              })
+                              toast.success("Invoice PDF downloaded")
+                            } catch (error: any) {
+                              console.error("Error generating PDF:", error)
+                              toast.error("Failed to generate PDF", {
+                                description: error?.message || "Please try again"
+                              })
+                            }
+                          }}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Download PDF
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => copyLink(invoice.link)}>
                           <Copy className="mr-2 h-4 w-4" />
