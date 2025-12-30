@@ -203,10 +203,18 @@ export function useReputation(sellerAddress?: string) {
           );
         },
       });
+      
+      // Invalidate after a short delay to catch any race conditions
+      setTimeout(() => {
+        refetchScore();
+        refetchTier();
+        refetchStats();
+      }, 500);
     }
   };
 
   // Primary: Watch for ReputationUpdated events - most direct signal
+  // This event is emitted by Reputation contract when SettlementRouter calls updateReputation
   useWatchContractEvent({
     address: contractAddresses.Reputation as `0x${string}`,
     abi: ReputationABI,
@@ -222,21 +230,23 @@ export function useReputation(sellerAddress?: string) {
             invoiceVolume: invoiceVolume?.toString(),
             blockNumber: log.blockNumber?.toString(),
           });
-          // Sync frontend with chain data
+          // Immediately sync frontend with chain data
           if (newScore) {
             setFrontendScore(Number(newScore));
           }
           if (newTier !== undefined && newTier !== null) {
             setFrontendTier(Number(newTier) as ReputationTier);
           }
-          // Immediate refetch - blockchain state is updated at this point
+          // Immediate refetch to ensure UI is updated
           triggerRefetch();
         }
       });
     },
   });
 
-  // Watch InvoiceCleared events - increment score immediately in frontend
+  // Watch InvoiceCleared events - trigger reputation refetch
+  // SettlementRouter calls reputation.updateReputation() when clearing invoice
+  // So when invoice is cleared, reputation is already updated on-chain
   useWatchContractEvent({
     address: contractAddresses.InvoiceRegistry as `0x${string}`,
     abi: InvoiceRegistryABI,
@@ -247,29 +257,22 @@ export function useReputation(sellerAddress?: string) {
         const { seller: eventSeller } = log.args as any;
         
         if (eventSeller?.toLowerCase() === seller?.toLowerCase() && invoiceId) {
-          console.log('📄 Invoice cleared detected:', {
+          console.log('📄 Invoice cleared - reputation should be updated:', {
             invoiceId,
             seller: eventSeller,
             blockNumber: log.blockNumber?.toString(),
           });
           
-          // Fetch invoice amount from chain to calculate score increment
-          // For now, use a reasonable estimate or fetch it
-          // We'll trigger frontend update immediately, then sync with chain
-          // Default to $1000 USDC (6 decimals) = 1000000000n
-          const estimatedAmount = BigInt('1000000000'); // $1000 default
-          
-          // Update frontend score immediately
-          updateFrontendScore(invoiceId, estimatedAmount);
-          
-          // Also trigger refetch to sync with chain (which has the actual amount)
-          setTimeout(() => triggerRefetch(), 2000);
+          // Reputation is already updated on-chain by SettlementRouter
+          // Just trigger immediate refetch to sync with chain
+          triggerRefetch();
         }
       });
     },
   });
 
-  // Watch InvoiceSettled events - get actual invoice amount
+  // Watch InvoiceSettled events - reputation updated right after this
+  // SettlementRouter updates reputation after settlement, so trigger refetch
   useWatchContractEvent({
     address: contractAddresses.SettlementRouter as `0x${string}`,
     abi: SettlementRouterABI,
@@ -279,18 +282,16 @@ export function useReputation(sellerAddress?: string) {
         const invoiceId = log.args?.invoiceId?.toString();
         const { seller: eventSeller, invoiceAmount } = log.args as any;
         
-        if (eventSeller?.toLowerCase() === seller?.toLowerCase() && invoiceId && invoiceAmount) {
-          console.log('💰 Invoice settled with amount:', {
+        if (eventSeller?.toLowerCase() === seller?.toLowerCase() && invoiceId) {
+          console.log('💰 Invoice settled - reputation updating...', {
             invoiceId,
             invoiceAmount: invoiceAmount?.toString(),
             seller: eventSeller,
           });
           
-          // Update frontend score with actual invoice amount
-          updateFrontendScore(invoiceId, invoiceAmount as bigint);
-          
-          // Trigger refetch to ensure sync
-          setTimeout(() => triggerRefetch(), 1500);
+          // Reputation update happens atomically in same transaction
+          // Wait a moment for block confirmation, then refetch
+          setTimeout(() => triggerRefetch(), 1000);
         }
       });
     },
