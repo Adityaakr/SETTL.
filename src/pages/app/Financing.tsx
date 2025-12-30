@@ -1,5 +1,5 @@
 import { motion } from "framer-motion"
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { 
   Zap, 
   TrendingUp, 
@@ -400,19 +400,30 @@ function EligibleInvoiceCard({
   const hasEnoughLiquidity = availableLiquidity >= invoice.maxAdvance
 
   // Check invoice status in real-time - use this to disable button if status changed
-  const { data: invoiceData } = useReadContract({
+  const { data: invoiceData, refetch: refetchInvoiceStatus } = useReadContract({
     address: contractAddresses.InvoiceRegistry as `0x${string}`,
     abi: InvoiceRegistryABI,
     functionName: 'getInvoice',
     args: [invoice.invoiceId],
     query: {
       enabled: !!invoice.invoiceId && !!contractAddresses.InvoiceRegistry,
-      refetchInterval: 5000, // Refetch every 5 seconds to get latest status
+      refetchInterval: 3000, // Refetch every 3 seconds to get latest status
     },
   })
 
-  // Check if invoice status is still "Issued" (0)
-  const isInvoiceIssued = invoiceData ? Number((invoiceData as any).status) === 0 : true
+  // Check if invoice status is still "Issued" (0) - default to false if data unavailable to be safe
+  const isInvoiceIssued = useMemo(() => {
+    if (!invoiceData) return false // Don't allow if we can't verify status
+    try {
+      const status = (invoiceData as any).status
+      // Handle both bigint and number types
+      const statusNum = typeof status === 'bigint' ? Number(status) : Number(status)
+      return statusNum === 0
+    } catch (e) {
+      console.error('Error checking invoice status:', e)
+      return false
+    }
+  }, [invoiceData])
 
   const handleRequestAdvance = async () => {
     if (!hasEnoughLiquidity) {
@@ -431,6 +442,9 @@ function EligibleInvoiceCard({
         throw new Error("Unable to verify invoice status. Please try again.")
       }
 
+      // Refetch invoice status first to ensure we have latest data
+      await refetchInvoiceStatus()
+      
       const currentInvoice = await publicClient.readContract({
         address: contractAddresses.InvoiceRegistry as `0x${string}`,
         abi: InvoiceRegistryABI,
@@ -438,7 +452,7 @@ function EligibleInvoiceCard({
         args: [invoice.invoiceId],
       }) as any
       
-      if (!currentInvoice) {
+      if (!currentInvoice || !currentInvoice.invoiceId || currentInvoice.invoiceId === 0n) {
         toast.error("Invoice not found", {
           description: "The invoice could not be found. Please refresh and try again.",
           duration: 8000,
@@ -448,7 +462,16 @@ function EligibleInvoiceCard({
       }
 
       // Check if invoice status is still "Issued" (status === 0)
-      const invoiceStatus = Number(currentInvoice.status)
+      // Handle both bigint and number types
+      const statusValue = currentInvoice.status
+      const invoiceStatus = typeof statusValue === 'bigint' ? Number(statusValue) : Number(statusValue)
+      
+      console.log('Checking invoice status before advance request:', {
+        invoiceId: invoice.invoiceId.toString(),
+        status: invoiceStatus,
+        invoiceData: currentInvoice
+      })
+      
       if (invoiceStatus !== 0) {
         const statusNames: Record<number, string> = {
           1: "Financed",
