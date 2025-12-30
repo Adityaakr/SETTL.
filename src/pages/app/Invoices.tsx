@@ -354,7 +354,8 @@ export default function Invoices() {
                             View Details
                           </Link>
                         </DropdownMenuItem>
-                        <InvoicePDFDownloadButton invoice={invoice} />
+                        {/* PDF download button hidden for now */}
+                        {false && <InvoicePDFDownloadButton invoice={invoice} />}
                         <DropdownMenuItem onClick={() => copyLink(invoice.link)}>
                           <Copy className="mr-2 h-4 w-4" />
                           Copy Link

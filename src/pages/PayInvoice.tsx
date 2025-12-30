@@ -622,7 +622,8 @@ export default function PayInvoice() {
               Back
             </Button>
             <div className="flex items-center gap-2">
-              {invoice && (
+              {/* PDF download button hidden for now */}
+              {false && invoice && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
