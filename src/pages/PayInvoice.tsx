@@ -190,13 +190,21 @@ export default function PayInvoice() {
       return
     }
 
-    if (!embeddedWallet) {
+    if (!address) {
+      toast.error("Please connect your wallet first")
+      return
+    }
+
+    if (!connectedWallet) {
       toast.error("No wallet available")
       return
     }
 
-    if (!address) {
-      toast.error("Please connect your wallet first")
+    // Ensure the connected wallet address matches the active address
+    if (connectedWallet.address.toLowerCase() !== address.toLowerCase()) {
+      toast.error("Wallet address mismatch", {
+        description: "Please ensure you're using the connected wallet"
+      })
       return
     }
 
