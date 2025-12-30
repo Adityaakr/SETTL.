@@ -12,9 +12,15 @@ import {
   AlertCircle,
   Calendar,
   User,
-  Sparkles
+  Sparkles,
+  Wallet,
+  CreditCard,
+  Building2,
+  Download,
+  MoreHorizontal
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { useInvoice } from "@/hooks/useInvoice"
 import { useInvoiceNFT } from "@/hooks/useInvoiceNFT"
 import { useReadContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi"
@@ -22,10 +28,9 @@ import { useSendTransaction, useWallets, usePrivy } from "@privy-io/react-auth"
 import { usePrivyAccount } from "@/hooks/usePrivyAccount"
 import { contractAddresses } from "@/lib/contracts"
 import { DemoUSDCABI, SettlementRouterABI, InvoiceRegistryABI } from "@/lib/abis"
-import { formatUnits, parseUnits, isAddress, encodeFunctionData, encodeFunctionResult, decodeFunctionResult } from "viem"
+import { formatUnits, parseUnits, isAddress, encodeFunctionData } from "viem"
 import { toast } from "sonner"
 import { Link } from "react-router-dom"
-import { WaterfallAnimation } from "@/components/features/WaterfallAnimation"
 
 const STATUS_LABELS = {
   0: "Issued",
@@ -33,6 +38,8 @@ const STATUS_LABELS = {
   2: "Paid",
   3: "Cleared",
 }
+
+type PaymentMethod = "privy" | "card" | "bank"
 
 export default function PayInvoice() {
   const { invoiceId } = useParams<{ invoiceId: string }>()
@@ -51,6 +58,10 @@ export default function PayInvoice() {
     return ct === 'embedded' || wct === 'privy' || ct.includes('privy') || ct.includes('embedded');
   }) || wallets[0];
   
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("privy")
+  const [cardNumber, setCardNumber] = useState("")
+  const [cardExpiry, setCardExpiry] = useState("")
+  const [cardCVC, setCardCVC] = useState("")
   const [step, setStep] = useState<"approve" | "pay" | "complete">("approve")
   const [approveHash, setApproveHash] = useState<`0x${string}` | null>(null)
   const [payHash, setPayHash] = useState<`0x${string}` | null>(null)
@@ -118,9 +129,7 @@ export default function PayInvoice() {
     }
 
     if (!embeddedWallet) {
-      toast.error("No wallet available", {
-        description: "Please connect your Privy embedded wallet",
-      })
+      toast.error("No wallet available")
       return
     }
 
@@ -131,7 +140,7 @@ export default function PayInvoice() {
         functionName: "approve",
         args: [
           contractAddresses.SettlementRouter as `0x${string}`,
-          invoice.amount, // Approve full invoice amount
+          invoice.amount,
         ],
       })
 
@@ -153,6 +162,7 @@ export default function PayInvoice() {
       setApproveHash(result.hash)
       toast.success("Approval transaction submitted!")
     } catch (error: any) {
+      console.error("Approval error:", error)
       toast.error("Approval failed", {
         description: error.message || "Please try again",
       })
@@ -162,46 +172,30 @@ export default function PayInvoice() {
   }
 
   const handlePay = async () => {
-    if (!invoice || !invoiceId || !contractAddresses.SettlementRouter) {
-      toast.error("Invoice not found")
+    if (!invoice || !contractAddresses.SettlementRouter || !invoiceId) {
+      toast.error("Missing invoice data")
       return
     }
 
     if (!embeddedWallet) {
-      toast.error("No wallet available", {
-        description: "Please connect your Privy embedded wallet",
-      })
+      toast.error("No wallet available")
       return
     }
 
-    // Pre-flight checks
-    if (invoice.status === 3) {
-      toast.error("Invoice already cleared", {
-        description: "This invoice has already been paid and cleared.",
-      })
+    if (!address) {
+      toast.error("Please connect your wallet first")
       return
     }
 
-    if (address?.toLowerCase() !== invoice.buyer.toLowerCase()) {
-      toast.error("Not the invoice buyer", {
-        description: "Only the buyer address can pay this invoice.",
-      })
-      return
-    }
-
-    // Check allowance one more time before attempting payment
-    if (allowance !== undefined && allowance < invoice.amount) {
-      toast.error("Insufficient USDC allowance", {
-        description: "Please approve USDC spending first. The approval may still be processing.",
-      })
-      // Refetch allowance in case it just updated
-      refetchAllowance()
+    // Only allow Privy wallet payment for now (card/bank are demo)
+    if (paymentMethod !== "privy") {
+      toast.info("Card and bank transfer are demo only. Please use Privy wallet to pay.")
       return
     }
 
     setIsPaying(true)
     try {
-      // Pre-flight validation: Check real contract state before attempting transaction
+      // Pre-flight checks
       if (publicClient && address && invoice) {
         try {
           // 1. Check USDC balance
@@ -212,6 +206,15 @@ export default function PayInvoice() {
             args: [address],
           }) as bigint
 
+          if (balance < invoice.amount) {
+            toast.error("Insufficient USDC balance", {
+              description: `You have ${formatUnits(balance, 6)} USDC, but need ${formatUnits(invoice.amount, 6)} USDC to pay this invoice.`,
+              duration: 8000,
+            })
+            setIsPaying(false)
+            return
+          }
+
           // 2. Check USDC allowance
           const currentAllowance = await publicClient.readContract({
             address: contractAddresses.DemoUSDC as `0x${string}`,
@@ -219,74 +222,6 @@ export default function PayInvoice() {
             functionName: "allowance",
             args: [address, contractAddresses.SettlementRouter as `0x${string}`],
           }) as bigint
-
-          // 3. Check invoice status directly from contract
-          const InvoiceRegistryABI = [
-            {
-              inputs: [{ name: "invoiceId", type: "uint256" }],
-              name: "getInvoice",
-              outputs: [
-                {
-                  components: [
-                    { name: "invoiceId", type: "uint256" },
-                    { name: "seller", type: "address" },
-                    { name: "buyer", type: "address" },
-                    { name: "amount", type: "uint256" },
-                    { name: "dueDate", type: "uint256" },
-                    { name: "status", type: "uint8" },
-                    { name: "createdAt", type: "uint256" },
-                    { name: "paidAt", type: "uint256" },
-                    { name: "clearedAt", type: "uint256" },
-                  ],
-                  name: "",
-                  type: "tuple",
-                },
-              ],
-              stateMutability: "view",
-              type: "function",
-            },
-          ] as const
-
-          const onChainInvoice = await publicClient.readContract({
-            address: contractAddresses.InvoiceRegistry as `0x${string}`,
-            abi: InvoiceRegistryABI,
-            functionName: "getInvoice",
-            args: [BigInt(invoiceId)],
-          }) as any
-
-          console.log("[Payment Pre-flight Check]", {
-            balance: balance.toString(),
-            allowance: currentAllowance.toString(),
-            invoiceAmount: invoice.amount.toString(),
-            invoiceStatus: onChainInvoice.status,
-            invoiceBuyer: onChainInvoice.buyer,
-            connectedAddress: address,
-          })
-
-          // Validate checks
-          if (onChainInvoice.status === 3) {
-            toast.error("Invoice already cleared", {
-              description: "This invoice has already been paid and cleared.",
-            })
-            setIsPaying(false)
-            return
-          }
-
-          if (onChainInvoice.buyer.toLowerCase() !== address.toLowerCase()) {
-            toast.error("Not the invoice buyer", {
-              description: "Only the buyer address can pay this invoice. Please connect the correct wallet.",
-            })
-            setIsPaying(false)
-            return
-          }
-
-          if (balance < invoice.amount) {
-            toast.error("Insufficient USDC balance", {
-              description: `You have ${formatUnits(balance, 6)} USDC, but need ${formatUnits(invoice.amount, 6)} USDC to pay this invoice.`,
-            })
-            setIsPaying(false)
-            return
-          }
 
           if (currentAllowance < invoice.amount) {
             toast.error("Insufficient USDC allowance", {
@@ -298,17 +233,36 @@ export default function PayInvoice() {
             return
           }
 
-          console.log("[Payment Pre-flight Check] ✓ All checks passed, proceeding with transaction")
+          // 3. Check invoice status directly from contract
+          const onChainInvoice = await publicClient.readContract({
+            address: contractAddresses.InvoiceRegistry as `0x${string}`,
+            abi: InvoiceRegistryABI,
+            functionName: "getInvoice",
+            args: [BigInt(invoiceId)],
+          }) as any
+
+          if (onChainInvoice.status === 3) {
+            toast.error("Invoice already cleared", {
+              description: "This invoice has already been paid and cleared.",
+              duration: 8000,
+            })
+            setIsPaying(false)
+            return
+          }
+
+          // 4. Verify buyer address
+          if (address.toLowerCase() !== onChainInvoice.buyer.toLowerCase()) {
+            toast.error("Not the invoice buyer", {
+              description: "Only the buyer address can pay this invoice. Please connect the correct wallet.",
+              duration: 8000,
+            })
+            setIsPaying(false)
+            return
+          }
         } catch (preFlightError: any) {
           console.error("[Payment Pre-flight Check] Error:", preFlightError)
-          // If pre-flight check fails, continue anyway (don't block the user)
-          // The transaction will fail with a clearer error if there's an issue
         }
       }
-
-      // Pre-flight checks have passed - proceed directly with real transaction
-      // We skip simulation as it can fail even when the real transaction succeeds
-      // (due to state differences, gas estimation, or nested contract call complexities)
 
       const data = encodeFunctionData({
         abi: SettlementRouterABI,
@@ -336,7 +290,6 @@ export default function PayInvoice() {
     } catch (error: any) {
       console.error("Payment error:", error)
       
-      // Provide more specific error messages
       let errorMessage = "Payment failed"
       let errorDescription = error.message || "Please try again"
       
@@ -391,23 +344,23 @@ export default function PayInvoice() {
   const isBuyer = address?.toLowerCase() === invoice.buyer.toLowerCase()
   const isPastDue = Number(invoice.dueDate) < Math.floor(Date.now() / 1000)
   const dueDate = new Date(Number(invoice.dueDate) * 1000)
-  const createdAt = new Date(Number(invoice.createdAt) * 1000)
   
-  // Get buyer metadata from localStorage
-  const getBuyerMetadata = () => {
+  // Get buyer and seller metadata from localStorage
+  const getInvoiceMetadata = () => {
     try {
       const stored = localStorage.getItem(`invoice_metadata_${invoiceId}`)
       if (stored) {
         return JSON.parse(stored)
       }
     } catch (e) {
-      console.error('Error reading buyer metadata:', e)
+      console.error('Error reading invoice metadata:', e)
     }
-    return { buyerName: '', buyerEmail: '' }
+    return { buyerName: '', buyerEmail: '', sellerName: '' }
   }
   
-  const buyerMetadata = invoice ? getBuyerMetadata() : { buyerName: '', buyerEmail: '' }
-  const buyerName = buyerMetadata.buyerName || ''
+  const metadata = getInvoiceMetadata()
+  const buyerName = metadata.buyerName || invoice.buyer.slice(0, 6) + '...' + invoice.buyer.slice(-4)
+  const sellerName = metadata.sellerName || 'SETTL. Business'
 
   return (
     <div className="min-h-screen bg-background">
@@ -417,7 +370,7 @@ export default function PayInvoice() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          {/* Compact Header */}
+          {/* Header */}
           <div className="mb-4 flex items-center justify-between">
             <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -427,235 +380,368 @@ export default function PayInvoice() {
               <Button variant="ghost" size="sm" onClick={copyPaymentLink}>
                 <Copy className="h-4 w-4" />
               </Button>
-              {invoice && (
-                <Button variant="ghost" size="sm" asChild>
-                  <a
-                    href={`https://explorer.testnet.mantle.xyz/address/${contractAddresses.InvoiceRegistry}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </Button>
-              )}
+              <Button variant="ghost" size="sm" asChild>
+                <a
+                  href={`https://explorer.testnet.mantle.xyz/address/${contractAddresses.InvoiceRegistry}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
             </div>
           </div>
 
-          {/* Invoice Card */}
-          <div className="rounded-xl border border-border bg-card p-6 shadow-lg">
-            {/* Header: Invoice ID, Tokenized Badge, Status */}
-            <div className="mb-4 flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl font-bold">Invoice #{invoiceId}</h1>
-                  {tokenId && (
-                    <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                      <Sparkles className="h-3 w-3" />
-                      Tokenized #{tokenId.toString()}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
-                    Due {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </div>
-                  {buyerName && (
-                    <div className="flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5" />
-                      {buyerName}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm ${
-                  invoice.status === 3 ? "bg-success/10 text-success" :
-                  invoice.status === 2 ? "bg-primary/10 text-primary" :
-                  invoice.status === 1 ? "bg-warning/10 text-warning" :
-                  "bg-muted text-muted-foreground"
-                }`}>
-                  {invoice.status === 3 && <CheckCircle2 className="h-3.5 w-3.5" />}
-                  {invoice.status === 2 && <Clock className="h-3.5 w-3.5" />}
-                  <span className="font-medium">{STATUS_LABELS[invoice.status]}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Amount - More Compact */}
-            <div className="mb-4 rounded-lg bg-secondary/50 p-4">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount Due</p>
-              <p className="mt-1 text-3xl font-bold">
+          {/* Invoice Details Card */}
+          <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
+            {/* Amount Due - Prominent */}
+            <div className="mb-6 text-center">
+              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-2">Amount Due</p>
+              <p className="text-5xl font-bold">
                 ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                <span className="ml-2 text-lg font-normal text-muted-foreground">USDC</span>
               </p>
             </div>
 
-            {/* Payment Actions */}
-            {isBuyer && invoice.status < 2 && (
-              <div className="space-y-3">
-                {step === "approve" && needsApproval && (
-                  <div className="space-y-3">
-                    <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-warning" />
-                        <span className="text-sm font-medium">Approve USDC to continue</span>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={handleApprove}
-                      disabled={isApproving || isApprovalConfirming}
-                      className="w-full"
-                      size="lg"
-                      variant="hero"
-                    >
-                      {isApproving || isApprovalConfirming ? (
-                        <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          {isApproving ? "Waiting for wallet..." : "Confirming..."}
-                        </>
-                      ) : (
-                        <>
-                          Approve ${amountDisplay.toLocaleString()} USDC
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-
-                {(step === "pay" || !needsApproval) && (
-                  <div className="space-y-3">
-                    {!needsApproval && (
-                      <div className="rounded-lg border border-success/20 bg-success/5 p-3">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-success" />
-                          <span className="text-sm font-medium">USDC Approved</span>
-                        </div>
-                      </div>
-                    )}
-                    <Button
-                      onClick={handlePay}
-                      disabled={isPaying || isPaymentConfirming || needsApproval}
-                      className="w-full"
-                      size="lg"
-                      variant="hero"
-                    >
-                      {isPaying || isPaymentConfirming ? (
-                        <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          {isPaying ? "Waiting for wallet..." : "Confirming payment..."}
-                        </>
-                      ) : (
-                        <>
-                          <DollarSign className="mr-2 h-5 w-5" />
-                          Pay ${amountDisplay.toLocaleString()} USDC
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-
-                {step === "complete" && (
-                  <div className="rounded-lg border border-success/20 bg-success/5 p-4 text-center">
-                    <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
-                    <h3 className="mt-3 text-lg font-semibold">Payment Complete!</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Settlement is being finalized on-chain.
-                    </p>
+            {/* Invoice Info */}
+            <div className="mb-6 space-y-4 border-b border-border pb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Due {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </div>
+                {tokenId && (
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                    <Sparkles className="h-3 w-3" />
+                    Tokenized #{tokenId.toString()}
                   </div>
                 )}
               </div>
-            )}
-
-            {!isBuyer && invoice.status < 2 && (
-              <div className="rounded-lg border border-warning/20 bg-warning/5 p-6">
-                <div className="text-center space-y-4">
-                  <AlertCircle className="h-8 w-8 mx-auto text-warning" />
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">Connect Wallet to Pay</h3>
-                    <p className="text-muted-foreground mb-3">
-                      This invoice is for a different address. Please connect the buyer wallet to proceed.
-                    </p>
-                    <div className="bg-muted/50 rounded-md p-3 mb-4">
-                      <p className="text-xs text-muted-foreground mb-1">Buyer address:</p>
-                      <p className="font-mono text-sm break-all">{invoice.buyer}</p>
-                    </div>
-                  </div>
-                  
-                  {ready && !authenticated && (
-                    <Button 
-                      onClick={async () => {
-                        try {
-                          await login()
-                          toast.success("Please connect your wallet to pay this invoice")
-                        } catch (error: any) {
-                          console.error("Login error:", error)
-                          toast.error("Failed to connect wallet", {
-                            description: error?.message || "Please try again"
-                          })
-                        }
-                      }}
-                      variant="hero"
-                      size="lg"
-                      className="w-full sm:w-auto"
-                    >
-                      Connect Wallet with Privy
-                    </Button>
-                  )}
-                  
-                  {ready && authenticated && address && (
-                    <div className="space-y-3">
-                      <div className="bg-muted/50 rounded-md p-3">
-                        <p className="text-xs text-muted-foreground mb-1">Currently connected:</p>
-                        <p className="font-mono text-sm break-all">{address}</p>
-                      </div>
-                      <p className="text-sm text-warning">
-                        The connected wallet doesn't match the buyer address. Please connect the correct wallet.
-                      </p>
-                      <Button 
-                        onClick={async () => {
-                          try {
-                            await login()
-                          } catch (error: any) {
-                            console.error("Login error:", error)
-                            toast.error("Failed to connect wallet", {
-                              description: error?.message || "Please try again"
-                            })
-                          }
-                        }}
-                        variant="outline"
-                        size="lg"
-                        className="w-full sm:w-auto"
-                      >
-                        Switch Wallet
-                      </Button>
-                    </div>
-                  )}
-                  
-                  {ready && authenticated && !address && (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Wallet connection in progress...
-                      </p>
-                      <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
-                    </div>
-                  )}
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">To</p>
+                  <p className="text-sm font-medium">{buyerName}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">From</p>
+                  <p className="text-sm font-medium">{sellerName}</p>
                 </div>
               </div>
-            )}
+            </div>
 
-            {invoice.status >= 2 && (
-              <div className="rounded-lg border border-success/20 bg-success/5 p-4 text-center">
-                <CheckCircle2 className="mx-auto h-8 w-8 text-success" />
-                <p className="mt-2 font-semibold">
-                  {invoice.status === 3 ? "Invoice Cleared" : "Invoice Paid"}
-                </p>
+            {/* Items Table */}
+            <div className="mb-6 overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Item / Service</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Description</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase">Quantity</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Price</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="px-4 py-4 text-sm font-medium">Invoice Amount</td>
+                    <td className="px-4 py-4 text-sm text-muted-foreground">Payment for invoice INV-{invoice.invoiceId.toString().padStart(6, '0')}</td>
+                    <td className="px-4 py-4 text-sm text-center">1</td>
+                    <td className="px-4 py-4 text-sm text-right">${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-4 text-sm font-semibold text-right">${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Download Link */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Download className="h-4 w-4" />
+              <a href="#" className="hover:text-foreground transition-colors">View invoice details &gt;</a>
+            </div>
+          </div>
+
+          {/* Payment Method Selection */}
+          {invoice.status < 2 && (
+            <div className="rounded-xl border border-border bg-card p-6 shadow-lg">
+              <h2 className="text-lg font-semibold mb-4">Select a payment method</h2>
+              
+              {/* Payment Method Options */}
+              <div className="mb-6 flex gap-3">
+                <button
+                  onClick={() => setPaymentMethod("privy")}
+                  className={`flex-1 rounded-lg border-2 p-4 transition-all ${
+                    paymentMethod === "privy"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Wallet className="h-5 w-5" />
+                    <span className="font-medium">Connect Privy</span>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => setPaymentMethod("card")}
+                  className={`flex-1 rounded-lg border-2 p-4 transition-all ${
+                    paymentMethod === "card"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    <span className="font-medium">Card</span>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => setPaymentMethod("bank")}
+                  className={`flex-1 rounded-lg border-2 p-4 transition-all ${
+                    paymentMethod === "bank"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    <span className="font-medium">Bank transfer</span>
+                  </div>
+                </button>
+                
+                <button
+                  className="rounded-lg border-2 border-border p-4 hover:border-primary/50 transition-all"
+                >
+                  <MoreHorizontal className="h-5 w-5" />
+                </button>
               </div>
-            )}
+
+              {/* Payment Form */}
+              {paymentMethod === "privy" && (
+                <div className="space-y-4">
+                  {!isBuyer && (
+                    <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-warning mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-medium mb-1">Connect Wallet to Pay</p>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            This invoice is for a different address. Please connect the buyer wallet to proceed.
+                          </p>
+                          {ready && !authenticated && (
+                            <Button 
+                              onClick={async () => {
+                                try {
+                                  await login()
+                                  toast.success("Please connect your wallet to pay this invoice")
+                                } catch (error: any) {
+                                  console.error("Login error:", error)
+                                  toast.error("Failed to connect wallet", {
+                                    description: error?.message || "Please try again"
+                                  })
+                                }
+                              }}
+                              variant="hero"
+                              className="w-full sm:w-auto"
+                            >
+                              Connect Wallet with Privy
+                            </Button>
+                          )}
+                          {ready && authenticated && address && (
+                            <div className="mt-3">
+                              <p className="text-xs text-muted-foreground mb-2">Connected: {address}</p>
+                              <Button 
+                                onClick={async () => {
+                                  try {
+                                    await login()
+                                  } catch (error: any) {
+                                    toast.error("Failed to connect wallet")
+                                  }
+                                }}
+                                variant="outline"
+                                size="sm"
+                              >
+                                Switch Wallet
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {isBuyer && (
+                    <>
+                      {step === "approve" && needsApproval && (
+                        <div className="space-y-3">
+                          <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="h-4 w-4 text-warning" />
+                              <span className="text-sm font-medium">Approve USDC to continue</span>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={handleApprove}
+                            disabled={isApproving || isApprovalConfirming}
+                            className="w-full"
+                            size="lg"
+                            variant="hero"
+                          >
+                            {isApproving || isApprovalConfirming ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                {isApproving ? "Waiting for wallet..." : "Confirming..."}
+                              </>
+                            ) : (
+                              `Approve $${amountDisplay.toLocaleString()} USDC`
+                            )}
+                          </Button>
+                        </div>
+                      )}
+
+                      {(step === "pay" || !needsApproval) && (
+                        <Button
+                          onClick={handlePay}
+                          disabled={isPaying || isPaymentConfirming || needsApproval}
+                          className="w-full"
+                          size="lg"
+                          variant="hero"
+                        >
+                          {isPaying || isPaymentConfirming ? (
+                            <>
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                              {isPaying ? "Waiting for wallet..." : "Confirming payment..."}
+                            </>
+                          ) : (
+                            <>
+                              <DollarSign className="mr-2 h-5 w-5" />
+                              Pay ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
+                            </>
+                          )}
+                        </Button>
+                      )}
+
+                      {step === "complete" && (
+                        <div className="rounded-lg border border-success/20 bg-success/5 p-4 text-center">
+                          <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
+                          <h3 className="mt-3 text-lg font-semibold">Payment Complete!</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Settlement is being finalized on-chain.
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {paymentMethod === "card" && (
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-muted bg-muted/30 p-4">
+                    <p className="text-sm text-muted-foreground">
+                      Card payments are demo only. Please use Privy wallet to complete payment.
+                    </p>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Card number</label>
+                      <Input
+                        placeholder="1234 1234 1234 1234"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(e.target.value)}
+                        disabled
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <div className="h-6 w-10 bg-muted rounded"></div>
+                        <div className="h-6 w-10 bg-muted rounded"></div>
+                        <div className="h-6 w-10 bg-muted rounded"></div>
+                        <div className="h-6 w-10 bg-muted rounded"></div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Expiration date</label>
+                        <Input
+                          placeholder="MM / YY"
+                          value={cardExpiry}
+                          onChange={(e) => setCardExpiry(e.target.value)}
+                          disabled
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">CVC</label>
+                        <Input
+                          placeholder="CVC"
+                          value={cardCVC}
+                          onChange={(e) => setCardCVC(e.target.value)}
+                          disabled
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      toast.info("Card payments are demo only. Please use Privy wallet to pay.")
+                      setPaymentMethod("privy")
+                    }}
+                    className="w-full"
+                    size="lg"
+                    variant="hero"
+                    disabled
+                  >
+                    Pay ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Button>
+                </div>
+              )}
+
+              {paymentMethod === "bank" && (
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-muted bg-muted/30 p-4">
+                    <p className="text-sm text-muted-foreground">
+                      Bank transfers are demo only. Please use Privy wallet to complete payment.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      toast.info("Bank transfers are demo only. Please use Privy wallet to pay.")
+                      setPaymentMethod("privy")
+                    }}
+                    className="w-full"
+                    size="lg"
+                    variant="hero"
+                    disabled
+                  >
+                    Pay ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {invoice.status >= 2 && (
+            <div className="rounded-lg border border-success/20 bg-success/5 p-6 text-center">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
+              <h3 className="mt-4 text-xl font-semibold">
+                {invoice.status === 3 ? "Invoice Cleared" : "Invoice Paid"}
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {invoice.status === 3 
+                  ? "This invoice has been fully settled on-chain."
+                  : "Payment has been received and settlement is in progress."}
+              </p>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="text-center text-sm text-muted-foreground pb-8">
+            <p>Powered by SETTL.</p>
+            <div className="flex items-center justify-center gap-4 mt-2">
+              <a href="#" className="hover:text-foreground transition-colors">Terms</a>
+              <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
+            </div>
           </div>
         </motion.div>
       </div>
     </div>
   )
 }
-
