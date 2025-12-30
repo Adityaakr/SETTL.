@@ -568,19 +568,77 @@ export default function PayInvoice() {
             )}
 
             {!isBuyer && invoice.status < 2 && (
-              <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
-                <div className="text-center space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    This invoice is for a different address. Please connect the buyer wallet.
-                  </p>
+              <div className="rounded-lg border border-warning/20 bg-warning/5 p-6">
+                <div className="text-center space-y-4">
+                  <AlertCircle className="h-8 w-8 mx-auto text-warning" />
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Connect Wallet to Pay</h3>
+                    <p className="text-muted-foreground mb-3">
+                      This invoice is for a different address. Please connect the buyer wallet to proceed.
+                    </p>
+                    <div className="bg-muted/50 rounded-md p-3 mb-4">
+                      <p className="text-xs text-muted-foreground mb-1">Buyer address:</p>
+                      <p className="font-mono text-sm break-all">{invoice.buyer}</p>
+                    </div>
+                  </div>
+                  
                   {ready && !authenticated && (
                     <Button 
-                      onClick={() => login()}
+                      onClick={async () => {
+                        try {
+                          await login()
+                          toast.success("Please connect your wallet to pay this invoice")
+                        } catch (error: any) {
+                          console.error("Login error:", error)
+                          toast.error("Failed to connect wallet", {
+                            description: error?.message || "Please try again"
+                          })
+                        }
+                      }}
                       variant="hero"
-                      size="sm"
+                      size="lg"
+                      className="w-full sm:w-auto"
                     >
-                      Connect Wallet
+                      Connect Wallet with Privy
                     </Button>
+                  )}
+                  
+                  {ready && authenticated && address && (
+                    <div className="space-y-3">
+                      <div className="bg-muted/50 rounded-md p-3">
+                        <p className="text-xs text-muted-foreground mb-1">Currently connected:</p>
+                        <p className="font-mono text-sm break-all">{address}</p>
+                      </div>
+                      <p className="text-sm text-warning">
+                        The connected wallet doesn't match the buyer address. Please connect the correct wallet.
+                      </p>
+                      <Button 
+                        onClick={async () => {
+                          try {
+                            await login()
+                          } catch (error: any) {
+                            console.error("Login error:", error)
+                            toast.error("Failed to connect wallet", {
+                              description: error?.message || "Please try again"
+                            })
+                          }
+                        }}
+                        variant="outline"
+                        size="lg"
+                        className="w-full sm:w-auto"
+                      >
+                        Switch Wallet
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {ready && authenticated && !address && (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Wallet connection in progress...
+                      </p>
+                      <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+                    </div>
                   )}
                 </div>
               </div>
