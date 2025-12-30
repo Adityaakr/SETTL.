@@ -26,6 +26,9 @@ import { useAdvance, useTotalDebt, useRequestAdvance } from "@/hooks/useAdvance"
 import { useVault } from "@/hooks/useVault"
 import { formatUnits } from "viem"
 import { toast } from "sonner"
+import { useReadContract } from "wagmi"
+import { InvoiceRegistryABI } from "@/lib/abis"
+import { contractAddresses } from "@/lib/contracts"
 
 const STATUS_MAP: Record<InvoiceStatus, string> = {
   0: "issued",
@@ -395,6 +398,18 @@ function EligibleInvoiceCard({
 
   const hasEnoughLiquidity = availableLiquidity >= invoice.maxAdvance
 
+  // Check invoice status in real-time before allowing advance request
+  const { data: invoiceData, refetch: refetchInvoiceStatus } = useReadContract({
+    address: contractAddresses.InvoiceRegistry as `0x${string}`,
+    abi: InvoiceRegistryABI,
+    functionName: 'getInvoice',
+    args: [invoice.invoiceId],
+    query: {
+      enabled: !!invoice.invoiceId && !!contractAddresses.InvoiceRegistry,
+      refetchInterval: 10000, // Refetch every 10 seconds to get latest status
+    },
+  })
+
   const handleRequestAdvance = async () => {
     if (!hasEnoughLiquidity) {
       toast.error("Insufficient Vault Liquidity", {
@@ -406,6 +421,36 @@ function EligibleInvoiceCard({
 
     try {
       setIsRequesting(true)
+      
+      // Refetch invoice status to ensure it's still "Issued" before making the request
+      const result = await refetchInvoiceStatus()
+      const currentInvoice = result.data as any
+      
+      if (!currentInvoice) {
+        toast.error("Invoice not found", {
+          description: "The invoice could not be found. Please refresh and try again.",
+          duration: 8000,
+        })
+        setIsRequesting(false)
+        return
+      }
+
+      // Check if invoice status is still "Issued" (status === 0)
+      const invoiceStatus = Number(currentInvoice.status)
+      if (invoiceStatus !== 0) {
+        const statusNames: Record<number, string> = {
+          1: "Financed",
+          2: "Paid",
+          3: "Cleared"
+        }
+        const statusName = statusNames[invoiceStatus] || "Unknown"
+        toast.error("Invoice status changed", {
+          description: `This invoice is no longer eligible for advance. Current status: ${statusName}. The invoice may have been paid or financed already. Please refresh the page.`,
+          duration: 10000,
+        })
+        setIsRequesting(false)
+        return
+      }
       
       // Convert LTV percentage to basis points (e.g., 0.75 = 7500)
       const ltvBps = Math.floor(maxLTV * 10000)
@@ -426,14 +471,14 @@ function EligibleInvoiceCard({
       if (err.message?.includes("Insufficient vault liquidity") || err.message?.includes("Insufficient liquidity")) {
         errorMessage = `The vault doesn't have enough liquidity. Available: $${availableLiquidity.toLocaleString(undefined, { maximumFractionDigits: 2 })}. Needed: $${invoice.maxAdvance.toLocaleString(undefined, { maximumFractionDigits: 2 })}.`
       } else if (err.message?.includes("Invalid status")) {
-        errorMessage = "This invoice is no longer eligible for advance. It may have been paid or financed already."
+        errorMessage = "This invoice is no longer eligible for advance. It may have been paid or financed already. Please refresh the page to see the latest status."
       } else if (err.message?.includes("Not invoice seller")) {
         errorMessage = "You can only request advances on your own invoices."
       }
       
       toast.error("Failed to request advance", {
         description: errorMessage,
-        duration: 8000,
+        duration: 10000,
       })
     } finally {
       setIsRequesting(false)
