@@ -302,10 +302,19 @@ export function useActivity() {
   // Load past events on mount to show historical activity
   useEffect(() => {
     if (!publicClient || !address) {
+      console.log('[Activity] Missing publicClient or address:', { publicClient: !!publicClient, address });
       setIsLoading(false);
       return;
     }
 
+    // Check if contract addresses are configured
+    if (!contractAddresses.InvoiceRegistry) {
+      console.error('[Activity] InvoiceRegistry address not configured');
+      setIsLoading(false);
+      return;
+    }
+
+    console.log('[Activity] Starting historical event fetch for address:', address);
     setIsLoading(true);
 
     const fetchPastEvents = async () => {
