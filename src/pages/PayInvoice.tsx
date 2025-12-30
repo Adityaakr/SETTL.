@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useInvoice } from "@/hooks/useInvoice"
+import { useInvoiceNFT } from "@/hooks/useInvoiceNFT"
 import { useReadContract, useWaitForTransactionReceipt } from "wagmi"
 import { useSendTransaction, useWallets, usePrivy } from "@privy-io/react-auth"
 import { usePrivyAccount } from "@/hooks/usePrivyAccount"
