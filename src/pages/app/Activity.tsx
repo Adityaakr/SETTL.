@@ -141,7 +141,7 @@ export default function Activity() {
               const Icon = getActivityIcon(activity.type)
               const colorClass = getActivityColor(activity.type)
               const timeAgo = formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })
-              const explorerLink = `https://sepolia-explorer.mantle.xyz/tx/${activity.txHash}`
+              const explorerLink = `https://explorer.testnet.mantle.xyz/tx/${activity.txHash}`
               
               return (
                 <motion.div
