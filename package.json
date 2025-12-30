@@ -14,7 +14,8 @@
     "test": "hardhat test",
     "deploy": "hardhat run scripts/deploy-all.cjs --network mantleSepolia",
     "verify": "hardhat verify --network mantleSepolia",
-    "fix:vault-minter": "hardhat run scripts/fix-vault-minter-role.ts --network mantleSepolia"
+    "fix:vault-minter": "hardhat run scripts/fix-vault-minter-role.cjs --network mantleSepolia",
+    "check:vault": "hardhat run scripts/check-vault-config.cjs --network mantleSepolia"
   },
   "dependencies": {
     "@fontsource/outfit": "^5.2.8",
