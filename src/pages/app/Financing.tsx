@@ -9,7 +9,8 @@ import {
   Info,
   CheckCircle2,
   Loader2,
-  Copy
+  Copy,
+  Eye
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -54,7 +55,7 @@ export default function Financing() {
   const maxLTV = ltvMap[tierLabel] || 0.75
   const aprRange = aprMap[tierLabel] || { min: 8, max: 12 }
 
-  // Eligible invoices (status === 0, "Issued")
+  // Eligible invoices (status === 0, "Issued") - for stats calculation
   const eligibleInvoices = useMemo(() => {
     if (!invoices) return []
     
@@ -75,6 +76,32 @@ export default function Financing() {
           apr: `${avgApr}%`,
           tier: tierLabel,
           dueDate: new Date(Number(invoice.dueDate) * 1000),
+        }
+      })
+  }, [invoices, maxLTV, aprRange, tierLabel])
+
+  // All invoices for display (excluding status 1 which are shown in Active Positions)
+  const allInvoices = useMemo(() => {
+    if (!invoices) return []
+    
+    return invoices
+      .filter(inv => inv.status !== 1) // Exclude financed invoices (they're in Active Positions)
+      .map(invoice => {
+        const amount = parseFloat(formatUnits(invoice.amount, 6))
+        const maxAdvance = amount * maxLTV
+        const avgApr = ((aprRange.min + aprRange.max) / 2).toFixed(0)
+        
+        return {
+          id: `INV-${invoice.invoiceId.toString().padStart(6, '0')}`,
+          invoiceId: invoice.invoiceId,
+          buyer: `${invoice.buyer.slice(0, 6)}...${invoice.buyer.slice(-4)}`,
+          buyerFull: invoice.buyer,
+          amount,
+          maxAdvance,
+          apr: `${avgApr}%`,
+          tier: tierLabel,
+          dueDate: new Date(Number(invoice.dueDate) * 1000),
+          status: invoice.status,
         }
       })
   }, [invoices, maxLTV, aprRange, tierLabel])
@@ -181,18 +208,18 @@ export default function Financing() {
         </div>
       )}
 
-      {/* Eligible invoices */}
+      {/* All invoices */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-md">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">Eligible Invoices</h2>
+            <h2 className="text-lg font-semibold">All Invoices</h2>
             <Tooltip>
               <TooltipTrigger>
                 <Info className="h-4 w-4 text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent>
                 <p className="max-w-xs text-sm">
-                  Invoices that can receive advances based on your reputation tier
+                  All your invoices. Only invoices with "Issued" status can receive advances.
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -205,13 +232,13 @@ export default function Financing() {
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
               <span className="ml-3 text-muted-foreground">Loading invoices...</span>
             </div>
-          ) : eligibleInvoices.length === 0 ? (
+          ) : allInvoices.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <p className="text-muted-foreground mb-4">No eligible invoices for advance</p>
-              <p className="text-sm text-muted-foreground">Create invoices with status "Issued" to request advances</p>
+              <p className="text-muted-foreground mb-4">No invoices found</p>
+              <p className="text-sm text-muted-foreground">Create invoices to get started</p>
             </div>
           ) : (
-            eligibleInvoices.map((invoice, index) => (
+            allInvoices.map((invoice, index) => (
               <EligibleInvoiceCard
                 key={invoice.id}
                 invoice={invoice}
@@ -375,7 +402,7 @@ function ActivePositionCard({ invoiceId, dueDate }: { invoiceId: bigint; dueDate
   )
 }
 
-// Component for eligible invoice card
+// Component for invoice card (shows all invoices, but only allows advance request for eligible ones)
 function EligibleInvoiceCard({ 
   invoice, 
   index, 
@@ -393,6 +420,7 @@ function EligibleInvoiceCard({
     apr: string
     tier: string
     dueDate: Date
+    status?: InvoiceStatus
   }
   index: number
   maxLTV: number
@@ -405,24 +433,10 @@ function EligibleInvoiceCard({
   // Check if invoice already has an advance (if it does, it's already financed and not eligible)
   // Note: useAdvance will error/revert if no advance exists, which is expected and fine
   // We only care if existingAdvance exists and has an advanceAmount > 0
-  const { advance: existingAdvance, isLoading: isLoadingAdvance } = useAdvance(invoice.invoiceId)
+  const { advance: existingAdvance } = useAdvance(invoice.invoiceId)
 
-  // Hide this invoice card if it already has an advance (it should be in Active Positions instead)
-  if (existingAdvance && existingAdvance.advanceAmount && existingAdvance.advanceAmount > 0n) {
-    return null
-  }
-
-  // Don't render until we've checked for existing advance
-  if (isLoadingAdvance) {
-    return (
-      <div className="rounded-xl border border-border bg-card p-5">
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        </div>
-      </div>
-    )
-  }
-
+  // Determine if this invoice can request an advance (status === 0 and no existing advance)
+  const canRequestAdvance = invoice.status === 0 && (!existingAdvance || !existingAdvance.advanceAmount || existingAdvance.advanceAmount === 0n)
   const hasEnoughLiquidity = availableLiquidity >= invoice.maxAdvance
 
   // Check invoice status in real-time - use this to disable button if status changed
@@ -657,6 +671,14 @@ function EligibleInvoiceCard({
             >
               {invoice.id}
             </Link>
+            {invoice.status !== undefined && (
+              <>
+                <span className="text-muted-foreground">•</span>
+                <StatusBadge status={STATUS_MAP[invoice.status] as any}>
+                  {STATUS_MAP[invoice.status] || 'Unknown'}
+                </StatusBadge>
+              </>
+            )}
             <span className="text-muted-foreground">•</span>
             <span className="text-muted-foreground font-mono text-sm">{invoice.buyer}</span>
           </div>
@@ -679,35 +701,48 @@ function EligibleInvoiceCard({
             </div>
           </div>
         </div>
-        <Button 
-          variant="hero" 
-          onClick={handleRequestAdvance}
-          disabled={isLoading || !hasEnoughLiquidity || !isInvoiceIssued}
-          title={
-            !hasEnoughLiquidity 
-              ? `Insufficient vault liquidity. Available: $${availableLiquidity.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-              : !isInvoiceIssued 
-              ? "Invoice status has changed. This invoice is no longer eligible for advance."
-              : undefined
-          }
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : !hasEnoughLiquidity ? (
-            <>
-              <Zap className="mr-2 h-4 w-4" />
-              Insufficient Liquidity
-            </>
-          ) : (
-            <>
-              <Zap className="mr-2 h-4 w-4" />
-              Request Advance
-            </>
-          )}
-        </Button>
+        {canRequestAdvance ? (
+          <Button 
+            variant="hero" 
+            onClick={handleRequestAdvance}
+            disabled={isLoading || !hasEnoughLiquidity || !isInvoiceIssued}
+            title={
+              !hasEnoughLiquidity 
+                ? `Insufficient vault liquidity. Available: $${availableLiquidity.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                : !isInvoiceIssued 
+                ? "Invoice status has changed. This invoice is no longer eligible for advance."
+                : undefined
+            }
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : !hasEnoughLiquidity ? (
+              <>
+                <Zap className="mr-2 h-4 w-4" />
+                Insufficient Liquidity
+              </>
+            ) : (
+              <>
+                <Zap className="mr-2 h-4 w-4" />
+                Request Advance
+              </>
+            )}
+          </Button>
+        ) : (
+          <Button 
+            variant="outline" 
+            asChild
+            disabled
+          >
+            <Link to={`/app/invoices/${invoice.invoiceId}`}>
+              <Eye className="mr-2 h-4 w-4" />
+              View Invoice
+            </Link>
+          </Button>
+        )}
       </div>
     </motion.div>
   )
