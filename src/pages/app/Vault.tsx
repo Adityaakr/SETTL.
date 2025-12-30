@@ -474,6 +474,9 @@ function DepositDialog({
   const { allowance, approve: approveUSDC, isPending: isApproving, isConfirming: isApprovalConfirming, isSuccess: isApprovalSuccess, hash: approveHash, refetch: refetchAllowance } = useUSDCAllowance(contractAddresses.Vault)
   const { deposit, hash: depositHash, isPending: isDepositing, isConfirming: isDepositConfirming, isSuccess: isDepositSuccess } = useDepositVault()
   const { userBalance: vaultUSMTBalance, totalLiquidity, totalShares } = useVault()
+  
+  // State to track if we're waiting for allowance to update after approval
+  const [isWaitingForAllowanceUpdate, setIsWaitingForAllowanceUpdate] = useState(false)
 
   // Calculate needed allowance - handle invalid amounts safely
   const depositAmountBigInt = useMemo(() => {
@@ -488,7 +491,12 @@ function DepositDialog({
     }
   }, [depositAmount])
   
-  const needsApproval = depositAmountBigInt > 0 && allowance < depositAmountBigInt
+  // Check if approval is needed - account for potential timing issues
+  const needsApproval = useMemo(() => {
+    if (depositAmountBigInt === BigInt(0)) return false
+    if (isWaitingForAllowanceUpdate) return true // Still waiting for allowance update
+    return allowance < depositAmountBigInt
+  }, [depositAmountBigInt, allowance, isWaitingForAllowanceUpdate])
 
   // USMT+ is minted 1:1 with USDC deposit
   const usmtToReceive = useMemo(() => {
@@ -593,11 +601,20 @@ function DepositDialog({
         }
       )
       
-      // Refetch allowance after a short delay
-      const timer = setTimeout(() => {
-        refetchAllowance()
+      // Set waiting state and refetch allowance after a short delay
+      setIsWaitingForAllowanceUpdate(true)
+      const timer1 = setTimeout(async () => {
+        await refetchAllowance()
       }, 2000) // Wait 2 seconds for blockchain to update
-      return () => clearTimeout(timer)
+      const timer2 = setTimeout(async () => {
+        await refetchAllowance()
+        setIsWaitingForAllowanceUpdate(false) // Clear waiting state after refetch
+      }, 4000) // Second refetch to ensure we get updated value
+      
+      return () => {
+        clearTimeout(timer1)
+        clearTimeout(timer2)
+      }
     }
   }, [approveHash, isApprovalSuccess, refetchAllowance])
 
@@ -643,11 +660,11 @@ function DepositDialog({
       return
     }
     
-    // Final check - ensure we have sufficient allowance
+    // Final check - ensure we have sufficient allowance (double check before sending transaction)
     // The button should already be disabled if needsApproval is true, but this is a safety check
-    if (allowance < depositAmountBigInt) {
+    if (needsApproval || allowance < depositAmountBigInt) {
        toast.error("Approval required", {
-         description: "Please click 'Approve USDC' button first and wait for it to complete before depositing.",
+         description: "Please click 'Approve USDC' button first, wait for it to complete, and then try depositing again.",
         duration: 8000,
       })
       return
@@ -798,7 +815,7 @@ function DepositDialog({
             <div className="space-y-2">
               <Button
                 onClick={handleApprove}
-                disabled={!depositAmount || isApproving || isApprovalConfirming || parseFloat(depositAmount || "0") <= 0}
+                disabled={!depositAmount || isApproving || isApprovalConfirming || parseFloat(depositAmount || "0") <= 0 || isLoadingBalance}
                 className="w-full h-12 text-base font-semibold"
                 variant="default"
               >
@@ -811,6 +828,11 @@ function DepositDialog({
                   "Approve USDC"
                 )}
               </Button>
+              {isApprovalSuccess && (
+                <p className="text-xs text-center text-muted-foreground">
+                  Approval successful! You can now deposit.
+                </p>
+              )}
             </div>
           ) : (
             <Button
@@ -821,9 +843,10 @@ function DepositDialog({
                 isDepositConfirming || 
                 parseFloat(depositAmount || "0") <= 0 || 
                 parseFloat(depositAmount || "0") > tokenBalance ||
-                needsApproval
+                needsApproval ||
+                isLoadingBalance
               }
-              className="w-full h-12 text-base font-semibold bg-[#8B9A5B] hover:bg-[#7A8A4A] text-white"
+              className="w-full h-12 text-base font-semibold bg-[#8B9A5B] hover:bg-[#7A8A4A] text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isDepositing || isDepositConfirming ? (
                 <>
