@@ -10,161 +10,197 @@ For a detailed introduction, see [INTRO.md](./INTRO.md).
 
 ## 🏗️ Architecture
 
+### System Overview
+
+```mermaid
+graph TB
+    subgraph "User Layer"
+        Seller[👤 Seller<br/>Business]
+        Buyer[👤 Buyer<br/>Customer]
+        LP[💰 Liquidity Provider<br/>LP]
+        Admin[⚙️ Protocol Admin<br/>Treasury]
+    end
+
+    subgraph "Frontend Layer"
+        React[⚛️ React + TypeScript]
+        Privy[🔐 Privy<br/>Embedded Wallets]
+        Wagmi[🔗 Wagmi<br/>Web3 Hooks]
+        Reclaim[🔒 Reclaim Protocol<br/>zkTLS Proofs]
+        
+        React --> Privy
+        React --> Wagmi
+        React --> Reclaim
+    end
+
+    subgraph "Mantle Network (L2)"
+        subgraph "Invoice System"
+            InvoiceRegistry[📋 InvoiceRegistry<br/>State Management]
+            InvoiceNFT[🎨 InvoiceNFT<br/>ERC721 NFT]
+            
+            InvoiceRegistry -->|Mints| InvoiceNFT
+        end
+        
+        subgraph "Financing System"
+            Vault[🏦 Vault<br/>Liquidity Pool]
+            USMTPlus[🪙 USMT+<br/>ERC20 Receipt]
+            Staking[📊 Staking<br/>Yield Position]
+            AdvanceEngine[⚡ AdvanceEngine<br/>Instant Financing]
+            
+            Vault -->|Mints 1:1| USMTPlus
+            USMTPlus -->|Stake| Staking
+            AdvanceEngine -->|Borrows| Vault
+            AdvanceEngine -.->|Uses as Collateral| InvoiceNFT
+        end
+        
+        subgraph "Settlement System"
+            SettlementRouter[💸 SettlementRouter<br/>Payment Waterfall]
+            Reputation[⭐ Reputation<br/>Credit Score]
+            
+            SettlementRouter -->|Updates| InvoiceRegistry
+            SettlementRouter -->|Updates| Reputation
+            SettlementRouter -->|Repays| Vault
+        end
+        
+        DemoUSDC[💵 DemoUSDC<br/>ERC20 Stablecoin]
+    end
+
+    Seller -->|Creates Invoice| React
+    Buyer -->|Pays Invoice| React
+    LP -->|Deposits/Stakes| React
+    Admin -->|Manages| React
+
+    React -->|Web3 Calls| InvoiceRegistry
+    React -->|Web3 Calls| Vault
+    React -->|Web3 Calls| Staking
+    React -->|Web3 Calls| AdvanceEngine
+    React -->|Web3 Calls| SettlementRouter
+
+    InvoiceRegistry -.->|Checks Status| AdvanceEngine
+    AdvanceEngine -.->|Updates Status| InvoiceRegistry
+    SettlementRouter -.->|Updates Status| InvoiceRegistry
+    
+    SettlementRouter -->|Fee| Admin
+    SettlementRouter -->|Remainder| Seller
+    
+    style Seller fill:#e1f5ff
+    style Buyer fill:#e1f5ff
+    style LP fill:#fff4e1
+    style Admin fill:#ffe1f5
+    style InvoiceNFT fill:#d4edda
+    style Vault fill:#fff3cd
+    style SettlementRouter fill:#f8d7da
+    style Reputation fill:#d1ecf1
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           USER LAYER                                        │
-├──────────────┬──────────────┬──────────────┬────────────────────────────────┤
-│   Seller     │    Buyer     │      LP      │         Protocol Admin         │
-│ (Business)   │  (Customer)  │ (Liquidity)  │         (Treasury)             │
-└──────┬───────┴──────┬───────┴──────┬───────┴────────────────────────────────┘
-       │              │               │
-       │              │               │
-       ▼              ▼               ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         FRONTEND LAYER                                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  React + TypeScript Application                                             │
-│  ├── Privy (Embedded Wallets)                                              │
-│  ├── Wagmi (Web3 Interactions)                                             │
-│  └── Reclaim Protocol (zkTLS Proofs - Optional)                            │
-└──────┬──────────────────────────────────────────────────────────────────────┘
-       │
-       │ Web3 Calls
-       │
-       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       MANTLE NETWORK (L2)                                   │
-└──────┬──────────────────────────────────────────────────────────────────────┘
-       │
-       │ Smart Contract Interactions
-       │
-       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      SMART CONTRACT LAYER                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────┐           │
-│  │           INVOICE LIFECYCLE & TOKENIZATION                   │           │
-│  ├─────────────────────────────────────────────────────────────┤           │
-│  │                                                               │           │
-│  │  InvoiceRegistry ◄──┐                                        │           │
-│  │    ├─ Creates Invoice                                        │           │
-│  │    ├─ Manages State (Issued→Financed→Paid→Cleared)          │           │
-│  │    └─ Mints InvoiceNFT (ERC721) ────┐                       │           │
-│  │                                      │                       │           │
-│  │  InvoiceNFT (ERC721)                 │                       │           │
-│  │    ├─ Tokenized Invoice (RWA)        │                       │           │
-│  │    ├─ Secondary Market Ready         │                       │           │
-│  │    └─ DeFi Composable                │                       │           │
-│  │                                      │                       │           │
-│  └──────────────────────────────────────┼───────────────────────┘           │
-│                                         │                                    │
-│  ┌──────────────────────────────────────┼───────────────────────┐           │
-│  │      FINANCING & LIQUIDITY SYSTEM     │                       │           │
-│  ├──────────────────────────────────────┼───────────────────────┤           │
-│  │                                      │                       │           │
-│  │  Vault                               │                       │           │
-│  │    ├─ LP Deposits USDC              │                       │           │
-│  │    ├─ Mints USMT+ (1:1 receipt)     │                       │           │
-│  │    └─ Provides Liquidity            │                       │           │
-│  │         │                            │                       │           │
-│  │         ▼                            │                       │           │
-│  │  USMTPlus (ERC20)                    │                       │           │
-│  │    └─ Receipt Token                  │                       │           │
-│  │         │                            │                       │           │
-│  │         ▼                            │                       │           │
-│  │  Staking                             │                       │           │
-│  │    ├─ Stake USMT+                   │                       │           │
-│  │    ├─ Mint sUSMT+                   │                       │           │
-│  │    └─ Earn 15-25% APY               │                       │           │
-│  │                                      │                       │           │
-│  │  AdvanceEngine ◄─────────────────────┼───────────────────────┘           │
-│  │    ├─ Uses InvoiceNFT as Collateral │                                    │
-│  │    ├─ Borrows from Vault            │                                    │
-│  │    ├─ Calculates LTV (70-80%)       │                                    │
-│  │    └─ Manages Interest/Repayment    │                                    │
-│  │         │                            │                                    │
-│  └─────────┼────────────────────────────┘                                    │
-│            │                                                                 │
-│  ┌─────────┼─────────────────────────────────────────────────┐             │
-│  │         │        SETTLEMENT & REPUTATION                   │             │
-│  ├─────────┼─────────────────────────────────────────────────┤             │
-│  │         │                                                  │             │
-│  │         ▼                                                  │             │
-│  │  SettlementRouter                                          │             │
-│  │    ├─ Receives Payment from Buyer                         │             │
-│  │    ├─ Executes Waterfall (atomic tx):                     │             │
-│  │    │   1. Protocol Fee → Treasury                         │             │
-│  │    │   2. Repayment → Vault (if financed)                 │             │
-│  │    │   3. Remainder → Seller                              │             │
-│  │    ├─ Updates InvoiceRegistry Status                      │             │
-│  │    └─ Updates Reputation                                  │             │
-│  │         │                                                  │             │
-│  │         ▼                                                  │             │
-│  │  Reputation                                                │             │
-│  │    ├─ Tracks On-Chain Credit Score                        │             │
-│  │    ├─ Updates on Payment Success                          │             │
-│  │    ├─ Enables Better Terms (higher LTV, lower APR)        │             │
-│  │    └─ Portable Across Platforms                           │             │
-│  │                                                            │             │
-│  └────────────────────────────────────────────────────────────┘             │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        INVOICE LIFECYCLE FLOW                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  1. CREATE INVOICE                                                          │
-│     Seller → InvoiceRegistry.createInvoice()                                │
-│     └─ InvoiceRegistry mints InvoiceNFT (ERC721) to Seller                  │
-│     Status: Issued                                                          │
-│                                                                              │
-│  2. [OPTIONAL] REQUEST ADVANCE                                              │
-│     Seller → AdvanceEngine.requestAdvance(invoiceId)                        │
-│     ├─ AdvanceEngine uses InvoiceNFT as collateral                          │
-│     ├─ Borrows USDC from Vault (70-80% LTV)                                 │
-│     ├─ Transfers USDC to Seller                                             │
-│     └─ Updates InvoiceRegistry status to Financed                           │
-│                                                                              │
-│  3. PAY INVOICE                                                             │
-│     Buyer → SettlementRouter.payInvoice(invoiceId)                          │
-│     ├─ Transfers USDC from Buyer                                            │
-│     ├─ Executes Settlement Waterfall (atomic):                              │
-│     │   ├─ Protocol Fee (0.5%) → Treasury                                   │
-│     │   ├─ Repayment + Interest → Vault (if financed)                       │
-│     │   └─ Remainder → Seller                                               │
-│     ├─ Updates InvoiceRegistry status: Paid → Cleared                       │
-│     └─ Updates Reputation score                                             │
-│                                                                              │
-│  4. REPUTATION IMPROVES                                                     │
-│     Better terms unlocked (higher LTV, lower APR)                           │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+### Invoice Lifecycle Flow
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      LIQUIDITY PROVIDER FLOW                                │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  1. DEPOSIT                                                                 │
-│     LP → Vault.deposit(USDC)                                                │
-│     └─ Receives USMT+ tokens (1:1 with deposit)                             │
-│                                                                              │
-│  2. [OPTIONAL] STAKE                                                        │
-│     LP → Staking.stake(USMT+)                                               │
-│     └─ Receives sUSMT+ tokens                                               │
-│     └─ Earns 15-25% APY from borrower repayments                            │
-│                                                                              │
-│  3. EARN YIELD                                                              │
-│     Yield comes from:                                                       │
-│     ├─ Interest on invoice advances                                         │
-│     └─ Protocol fees                                                        │
-│                                                                              │
-│  4. WITHDRAW                                                                │
-│     LP → Vault.withdraw(USMT+)                                              │
-│     └─ Burns USMT+, receives USDC                                           │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    participant Seller
+    participant InvoiceRegistry
+    participant InvoiceNFT
+    participant AdvanceEngine
+    participant Vault
+    participant Buyer
+    participant SettlementRouter
+    participant Reputation
+
+    Note over Seller,Reputation: 1. CREATE INVOICE
+    Seller->>InvoiceRegistry: createInvoice(buyer, amount, dueDate)
+    InvoiceRegistry->>InvoiceNFT: mintInvoiceNFT(invoiceId, seller)
+    InvoiceNFT-->>Seller: ERC721 NFT
+    InvoiceRegistry-->>Seller: Invoice Created (Status: Issued)
+
+    Note over Seller,Reputation: 2. [OPTIONAL] REQUEST ADVANCE
+    Seller->>AdvanceEngine: requestAdvance(invoiceId, ltv, apr)
+    AdvanceEngine->>InvoiceRegistry: getInvoice(invoiceId)
+    AdvanceEngine->>InvoiceNFT: Verify ownership
+    AdvanceEngine->>Vault: borrow(advanceAmount)
+    Vault-->>AdvanceEngine: USDC
+    AdvanceEngine->>InvoiceRegistry: markFinanced(invoiceId)
+    AdvanceEngine-->>Seller: USDC (70-80% LTV)
+    InvoiceRegistry-->>Seller: Status: Financed
+
+    Note over Seller,Reputation: 3. PAY INVOICE
+    Buyer->>SettlementRouter: payInvoice(invoiceId)
+    SettlementRouter->>Buyer: Transfer USDC
+    SettlementRouter->>InvoiceRegistry: updateStatus(Paid)
+    
+    Note over SettlementRouter: Settlement Waterfall (Atomic)
+    SettlementRouter->>SettlementRouter: Calculate Fee (0.5%)
+    SettlementRouter->>Treasury: Protocol Fee
+    alt Invoice was Financed
+        SettlementRouter->>AdvanceEngine: getRepaymentAmount()
+        AdvanceEngine-->>SettlementRouter: repayment + interest
+        SettlementRouter->>Vault: repay(amount)
+    end
+    SettlementRouter->>Seller: Remainder USDC
+    SettlementRouter->>InvoiceRegistry: updateStatus(Cleared)
+    SettlementRouter->>Reputation: updateReputation(seller, amount)
+    
+    Note over Seller,Reputation: 4. REPUTATION IMPROVES
+    Reputation-->>Seller: Better Terms Unlocked<br/>(Higher LTV, Lower APR)
+```
+
+### Liquidity Provider Flow
+
+```mermaid
+flowchart LR
+    Start([LP Starts]) --> Deposit[Deposit USDC<br/>to Vault]
+    Deposit --> Receive[Receive USMT+<br/>1:1 Receipt Token]
+    
+    Receive --> Choice{Stake?}
+    Choice -->|Yes| Stake[Stake USMT+]
+    Choice -->|No| Hold[Hold USMT+<br/>Liquid Position]
+    
+    Stake --> ReceiveStake[Receive sUSMT+<br/>Staked Token]
+    ReceiveStake --> Earn[Earn 15-25% APY<br/>From Borrower Repayments]
+    
+    Hold --> EarnSimple[Earn from<br/>Vault Utilization]
+    
+    Earn --> WithdrawStake[Unstake sUSMT+]
+    EarnSimple --> Withdraw[Withdraw USDC]
+    WithdrawStake --> Withdraw
+    
+    Withdraw --> Burn[Burn USMT+<br/>Receive USDC]
+    Burn --> End([Exit])
+    
+    style Deposit fill:#d4edda
+    style Receive fill:#fff3cd
+    style Stake fill:#d1ecf1
+    style Earn fill:#f8d7da
+    style Withdraw fill:#e1f5ff
+```
+
+### Settlement Waterfall
+
+```mermaid
+flowchart TD
+    Payment[Buyer Pays Invoice<br/>100% Invoice Amount] --> Settlement[SettlementRouter]
+    
+    Settlement --> CalcFee[Calculate Protocol Fee<br/>0.5%]
+    CalcFee --> Fee[Protocol Fee<br/>→ Treasury]
+    
+    Settlement --> Check{Invoice<br/>Financed?}
+    Check -->|Yes| CalcRepay[Calculate Repayment<br/>Principal + Interest]
+    Check -->|No| NoRepay[No Repayment<br/>0 USDC]
+    
+    CalcRepay --> Repay[Repayment<br/>→ Vault]
+    NoRepay --> CalcRemainder
+    
+    Fee --> CalcRemainder[Calculate Seller Remainder<br/>Invoice - Fee - Repayment]
+    Repay --> CalcRemainder
+    
+    CalcRemainder --> Remainder[Seller Remainder<br/>→ Seller]
+    
+    Settlement --> UpdateStatus[Update Invoice Status<br/>Paid → Cleared]
+    Settlement --> UpdateRep[Update Reputation<br/>Score + Tier]
+    
+    style Payment fill:#e1f5ff
+    style Fee fill:#fff3cd
+    style Repay fill:#d4edda
+    style Remainder fill:#d1ecf1
+    style UpdateRep fill:#f8d7da
 ```
 
 ### Key Components
