@@ -125,6 +125,7 @@ contract SettlementRouter is AccessControl {
         // 5. Update reputation (must succeed - atomic operation)
         // If reputation update fails, entire transaction reverts (invoice remains uncleared)
         // This ensures reputation is always updated when invoices are cleared
+        // Note: Direct call - if this reverts, entire transaction reverts (atomicity)
         reputation.updateReputation(invoice.seller, invoice.amount);
         
         emit InvoiceSettled(
