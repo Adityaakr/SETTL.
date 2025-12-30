@@ -47,27 +47,20 @@ export const wagmiConfig = createConfig({
       // Wagmi will automatically use WebSocket for event subscriptions
       webSocket('wss://mantle-sepolia.drpc.org', {
         reconnect: true, // Auto-reconnect on disconnect
-        reconnectTimeout: 3000, // Reconnect after 3 seconds (faster recovery)
       }),
       // Fallback: HTTP for reads and writes (more reliable for transactions)
       // Primary HTTP: Mantle official RPC (most reliable)
       http('https://rpc.sepolia.mantle.xyz', {
         batch: {
           wait: 50, // Wait 50ms to batch multiple requests
-          batchCount: 10, // Batch up to 10 requests
-        },
-        fetchOptions: {
-          timeout: 20000, // 20 second timeout for HTTP requests
+          batchSize: 10, // Batch up to 10 requests
         },
       }),
       // Secondary HTTP: dRPC endpoint (backup)
       http('https://mantle-sepolia.drpc.org', {
         batch: {
           wait: 50,
-          batchCount: 10,
-        },
-        fetchOptions: {
-          timeout: 20000,
+          batchSize: 10,
         },
       }),
     ], {
