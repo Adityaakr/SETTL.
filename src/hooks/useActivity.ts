@@ -343,18 +343,23 @@ export function useActivity() {
 
           for (const log of invoiceCreatedEvents) {
             const { invoiceId, seller, buyer, amount } = log.args as any;
-            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
-            pastActivities.push({
-              id: `invoice-created-${invoiceId}-${log.transactionHash}-${log.index}`,
-              type: 'invoice_created',
-              title: `Invoice INV-${invoiceId.toString().padStart(10, '0')} Created`,
-              description: `Issued to ${buyer?.slice(0, 6)}...${buyer?.slice(-4)}`,
-              amount: parseFloat(formatUnits(amount || 0n, 6)),
-              direction: null,
-              timestamp,
-              txHash: log.transactionHash,
-              blockNumber: log.blockNumber,
-            });
+            // Only include if user is seller or buyer
+            if (seller?.toLowerCase() === address?.toLowerCase() || buyer?.toLowerCase() === address?.toLowerCase()) {
+              const timestamp = await getBlockTimestamp(log.blockNumber);
+              pastActivities.push({
+                id: `invoice-created-${invoiceId}-${log.transactionHash}-${log.index}`,
+                type: 'invoice_created',
+                title: `Invoice INV-${invoiceId.toString().padStart(10, '0')} Created`,
+                description: seller?.toLowerCase() === address?.toLowerCase() 
+                  ? `Issued to ${buyer?.slice(0, 6)}...${buyer?.slice(-4)}`
+                  : `Received from ${seller?.slice(0, 6)}...${seller?.slice(-4)}`,
+                amount: parseFloat(formatUnits(amount || 0n, 6)),
+                direction: null,
+                timestamp,
+                txHash: log.transactionHash,
+                blockNumber: log.blockNumber,
+              });
+            }
           }
         } catch (error) {
           console.warn('Error fetching InvoiceCreated events:', error);
@@ -374,7 +379,7 @@ export function useActivity() {
 
           for (const log of invoicePaidEvents) {
             const { invoiceId, buyer, amount } = log.args as any;
-            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+            const timestamp = await getBlockTimestamp(log.blockNumber);
             pastActivities.push({
               id: `invoice-paid-${invoiceId}-${log.transactionHash}-${log.index}`,
               type: 'invoice_paid',
