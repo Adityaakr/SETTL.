@@ -459,7 +459,10 @@ export default function PayInvoice() {
               <ArrowLeft className="mr-1 h-3.5 w-3.5" />
               Back
             </Button>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={copyPaymentLink} className="h-8 w-8 p-0">
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
               {authenticated && (
                 <Button 
                   variant="ghost" 
@@ -476,14 +479,11 @@ export default function PayInvoice() {
                       })
                     }
                   }}
-                  className="h-8 text-xs"
+                  className="h-8 text-xs px-3"
                 >
                   Logout
                 </Button>
               )}
-              <Button variant="ghost" size="sm" onClick={copyPaymentLink} className="h-8 w-8 p-0">
-                <Copy className="h-3.5 w-3.5" />
-              </Button>
               <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
                   <a
                     href={`https://explorer.testnet.mantle.xyz/address/${contractAddresses.InvoiceRegistry}`}
