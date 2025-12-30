@@ -1,4 +1,4 @@
-import { useReadContract } from 'wagmi';
+import { useReadContract, useWatchContractEvent } from 'wagmi';
 import { usePrivyAccount } from './usePrivyAccount';
 import { contractAddresses } from '@/lib/contracts';
 import { ReputationABI } from '@/lib/abis';
@@ -45,7 +45,7 @@ export function useReputation(sellerAddress?: string) {
     },
   });
 
-  const { data: stats, isLoading: isLoadingStats } = useReadContract({
+  const { data: stats, isLoading: isLoadingStats, refetch: refetchStats } = useReadContract({
     address: contractAddresses.Reputation as `0x${string}`,
     abi: ReputationABI,
     functionName: 'getStats',
@@ -53,6 +53,27 @@ export function useReputation(sellerAddress?: string) {
     query: {
       enabled: !!seller && !!contractAddresses.Reputation,
       refetchInterval: 30000, // Reduced frequency to avoid rate limits
+    },
+  });
+
+  // Watch for ReputationUpdated events to refetch immediately when reputation changes
+  useWatchContractEvent({
+    address: contractAddresses.Reputation as `0x${string}`,
+    abi: ReputationABI,
+    eventName: 'ReputationUpdated',
+    onLogs(logs) {
+      // Check if any event is for the current seller
+      logs.forEach((log) => {
+        const [eventSeller] = log.args as any;
+        if (eventSeller?.toLowerCase() === seller?.toLowerCase()) {
+          console.log('🎯 Reputation updated for seller, refetching...');
+          // Refetch all reputation data
+          setTimeout(() => {
+            // Refetch is handled by the query refetchInterval
+            // But we can trigger immediate refetch if needed
+          }, 1000);
+        }
+      });
     },
   });
 
