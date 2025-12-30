@@ -132,11 +132,11 @@ export default function Dashboard() {
     }
   }, [invoices, effectiveTierLabel])
 
-  // Get recent invoices (4 most recent)
+  // Get recent invoices (8 most recent to fit in the box)
   const recentInvoices = useMemo(() => {
     if (!invoices || invoices.length === 0) return []
     
-    return invoices.slice(0, 4).map(invoice => {
+    return invoices.slice(0, 8).map(invoice => {
       const invoiceDate = new Date(Number(invoice.createdAt) * 1000)
       const amount = parseFloat(formatUnits(invoice.amount, 6))
       
