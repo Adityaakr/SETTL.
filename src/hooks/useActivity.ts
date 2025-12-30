@@ -310,9 +310,14 @@ export function useActivity() {
 
     const fetchPastEvents = async () => {
       try {
+        console.log('[Activity] Starting to fetch historical events...');
         const currentBlock = await publicClient.getBlockNumber();
-        // Fetch events from last 5,000 blocks (~12-24 hours on Mantle Sepolia) to avoid RPC limits
-        const fromBlock = Math.max(0n, currentBlock - BigInt(5000));
+        console.log('[Activity] Current block:', currentBlock.toString());
+        
+        // Fetch events from last 10,000 blocks (~24-48 hours on Mantle Sepolia)
+        // Increased range to capture more history
+        const fromBlock = Math.max(0n, currentBlock - BigInt(10000));
+        console.log('[Activity] Fetching events from block', fromBlock.toString(), 'to', currentBlock.toString());
         
         const pastActivities: Activity[] = [];
         const blockCache = new Map<string, number>(); // Cache block timestamps for performance
@@ -331,6 +336,7 @@ export function useActivity() {
 
         // Fetch InvoiceCreated events (as seller)
         try {
+          console.log('[Activity] Fetching InvoiceCreated events as seller...');
           const invoiceCreatedEventsSeller = await publicClient.getLogs({
             address: contractAddresses.InvoiceRegistry as `0x${string}`,
             event: parseAbiItem('event InvoiceCreated(uint256 indexed invoiceId, address indexed seller, address indexed buyer, uint256 amount)'),
@@ -340,6 +346,7 @@ export function useActivity() {
             fromBlock,
             toBlock: currentBlock,
           });
+          console.log('[Activity] Found', invoiceCreatedEventsSeller.length, 'InvoiceCreated events as seller');
           
           // Fetch InvoiceCreated events (as buyer)
           const invoiceCreatedEventsBuyer = await publicClient.getLogs({
@@ -351,11 +358,13 @@ export function useActivity() {
             fromBlock,
             toBlock: currentBlock,
           });
+          console.log('[Activity] Found', invoiceCreatedEventsBuyer.length, 'InvoiceCreated events as buyer');
           
           // Combine and deduplicate
           const invoiceCreatedEvents = [...invoiceCreatedEventsSeller, ...invoiceCreatedEventsBuyer].filter(
             (event, index, self) => index === self.findIndex((e) => e.transactionHash === event.transactionHash && e.index === event.index)
           );
+          console.log('[Activity] Total unique InvoiceCreated events:', invoiceCreatedEvents.length);
 
           for (const log of invoiceCreatedEvents) {
             const { invoiceId, seller, buyer, amount } = log.args as any;
@@ -378,11 +387,12 @@ export function useActivity() {
             }
           }
         } catch (error) {
-          console.warn('Error fetching InvoiceCreated events:', error);
+          console.error('[Activity] Error fetching InvoiceCreated events:', error);
         }
 
         // Fetch InvoicePaid events
         try {
+          console.log('[Activity] Fetching InvoicePaid events...');
           const invoicePaidEvents = await publicClient.getLogs({
             address: contractAddresses.InvoiceRegistry as `0x${string}`,
             event: parseAbiItem('event InvoicePaid(uint256 indexed invoiceId, address indexed buyer, uint256 amount)'),
@@ -408,8 +418,9 @@ export function useActivity() {
               blockNumber: log.blockNumber,
             });
           }
+          console.log('[Activity] Found', invoicePaidEvents.length, 'InvoicePaid events');
         } catch (error) {
-          console.warn('Error fetching InvoicePaid events:', error);
+          console.error('[Activity] Error fetching InvoicePaid events:', error);
         }
 
         // Fetch InvoiceCleared events
@@ -458,8 +469,9 @@ export function useActivity() {
               blockNumber: log.blockNumber,
             });
           }
+          console.log('[Activity] Found', invoiceClearedEvents.length, 'InvoiceCleared events and', invoiceSettledEvents.length, 'InvoiceSettled events');
         } catch (error) {
-          console.warn('Error fetching InvoiceCleared events:', error);
+          console.error('[Activity] Error fetching InvoiceCleared/InvoiceSettled events:', error);
         }
 
         // Fetch AdvanceRequested events
@@ -622,6 +634,7 @@ export function useActivity() {
         }
 
         // Set all past activities, sorted by timestamp (newest first)
+        console.log('[Activity] Found', pastActivities.length, 'historical activities');
         if (pastActivities.length > 0) {
           setActivities((prev) => {
             const combined = [...prev, ...pastActivities];
@@ -629,13 +642,19 @@ export function useActivity() {
             const unique = combined.filter((activity, index, self) => 
               index === self.findIndex((a) => a.id === activity.id)
             );
-            return unique.sort((a, b) => b.timestamp - a.timestamp);
+            const sorted = unique.sort((a, b) => b.timestamp - a.timestamp);
+            console.log('[Activity] Total activities after merge:', sorted.length);
+            return sorted;
           });
+        } else {
+          console.log('[Activity] No historical activities found');
         }
 
         setIsLoading(false);
+        console.log('[Activity] Finished loading historical events');
       } catch (error) {
-        console.error('Error fetching past events:', error);
+        console.error('[Activity] Error fetching past events:', error);
+        // Still set loading to false even on error so UI doesn't hang
         setIsLoading(false);
       }
     };
