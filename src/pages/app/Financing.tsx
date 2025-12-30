@@ -405,7 +405,23 @@ function EligibleInvoiceCard({
   // Check if invoice already has an advance (if it does, it's already financed and not eligible)
   // Note: useAdvance will error/revert if no advance exists, which is expected and fine
   // We only care if existingAdvance exists and has an advanceAmount > 0
-  const { advance: existingAdvance } = useAdvance(invoice.invoiceId)
+  const { advance: existingAdvance, isLoading: isLoadingAdvance } = useAdvance(invoice.invoiceId)
+
+  // Hide this invoice card if it already has an advance (it should be in Active Positions instead)
+  if (existingAdvance && existingAdvance.advanceAmount && existingAdvance.advanceAmount > 0n) {
+    return null
+  }
+
+  // Don't render until we've checked for existing advance
+  if (isLoadingAdvance) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      </div>
+    )
+  }
 
   const hasEnoughLiquidity = availableLiquidity >= invoice.maxAdvance
 
