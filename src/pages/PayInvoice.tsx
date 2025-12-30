@@ -363,47 +363,47 @@ export default function PayInvoice() {
   const sellerName = metadata.sellerName || 'SETTL. Business'
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="mx-auto max-w-2xl w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
           {/* Header */}
-          <div className="mb-4 flex items-center justify-between">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
+          <div className="mb-3 flex items-center justify-between">
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="h-8">
+              <ArrowLeft className="mr-1 h-3.5 w-3.5" />
               Back
             </Button>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={copyPaymentLink}>
-                <Copy className="h-4 w-4" />
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={copyPaymentLink} className="h-8 w-8 p-0">
+                <Copy className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="sm" asChild>
+              <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
                 <a
                   href={`https://explorer.testnet.mantle.xyz/address/${contractAddresses.InvoiceRegistry}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </Button>
             </div>
           </div>
 
           {/* Invoice Details Card */}
-          <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
+          <div className="rounded-xl border border-border bg-card p-6 shadow-lg">
             {/* Amount Due - Prominent */}
-            <div className="mb-6 text-center">
-              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-2">Amount Due</p>
-              <p className="text-5xl font-bold">
+            <div className="mb-4 text-center">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Amount Due</p>
+              <p className="text-4xl font-bold">
                 ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
 
             {/* Invoice Info */}
-            <div className="mb-6 space-y-4 border-b border-border pb-6">
+            <div className="mb-4 space-y-3 border-b border-border pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -430,141 +430,112 @@ export default function PayInvoice() {
             </div>
 
             {/* Items Table */}
-            <div className="mb-6 overflow-x-auto">
+            <div className="mb-4 overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Item / Service</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Description</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase">Quantity</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Price</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Total</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Item / Service</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Description</th>
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground uppercase">Qty</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground uppercase">Price</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground uppercase">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="px-4 py-4 text-sm font-medium">Invoice Amount</td>
-                    <td className="px-4 py-4 text-sm text-muted-foreground">Payment for invoice INV-{invoice.invoiceId.toString().padStart(6, '0')}</td>
-                    <td className="px-4 py-4 text-sm text-center">1</td>
-                    <td className="px-4 py-4 text-sm text-right">${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-4 text-sm font-semibold text-right">${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-3 py-2.5 text-sm font-medium">Invoice Amount</td>
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground">Payment for invoice INV-{invoice.invoiceId.toString().padStart(6, '0')}</td>
+                    <td className="px-3 py-2.5 text-sm text-center">1</td>
+                    <td className="px-3 py-2.5 text-sm text-right">${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-3 py-2.5 text-sm font-semibold text-right">${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 </tbody>
               </table>
-            </div>
-
-            {/* Download Link */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Download className="h-4 w-4" />
-              <a href="#" className="hover:text-foreground transition-colors">View invoice details &gt;</a>
             </div>
           </div>
 
           {/* Payment Method Selection */}
           {invoice.status < 2 && (
-            <div className="rounded-xl border border-border bg-card p-6 shadow-lg">
-              <h2 className="text-lg font-semibold mb-4">Select a payment method</h2>
+            <div className="rounded-xl border border-border bg-card p-5 shadow-lg">
+              <h2 className="text-base font-semibold mb-3">Select a payment method</h2>
               
               {/* Payment Method Options */}
-              <div className="mb-6 flex gap-3">
+              <div className="mb-4 flex gap-2">
                 <button
-                  onClick={() => setPaymentMethod("privy")}
-                  className={`flex-1 rounded-lg border-2 p-4 transition-all ${
+                  onClick={async () => {
+                    if (!isBuyer && (!authenticated || !ready)) {
+                      try {
+                        await login()
+                        toast.success("Please connect your wallet to pay this invoice")
+                      } catch (error: any) {
+                        console.error("Login error:", error)
+                        toast.error("Failed to connect wallet", {
+                          description: error?.message || "Please try again"
+                        })
+                      }
+                    } else {
+                      setPaymentMethod("privy")
+                    }
+                  }}
+                  className={`flex-1 rounded-lg border-2 p-3 transition-all ${
                     paymentMethod === "privy"
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"
                   }`}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    <Wallet className="h-5 w-5" />
-                    <span className="font-medium">Connect Privy</span>
+                    <Wallet className="h-4 w-4" />
+                    <span className="font-medium text-sm">Wallet</span>
                   </div>
                 </button>
                 
                 <button
                   onClick={() => setPaymentMethod("card")}
-                  className={`flex-1 rounded-lg border-2 p-4 transition-all ${
+                  className={`flex-1 rounded-lg border-2 p-3 transition-all ${
                     paymentMethod === "card"
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"
                   }`}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    <span className="font-medium">Card</span>
+                    <CreditCard className="h-4 w-4" />
+                    <span className="font-medium text-sm">Card</span>
                   </div>
                 </button>
                 
                 <button
                   onClick={() => setPaymentMethod("bank")}
-                  className={`flex-1 rounded-lg border-2 p-4 transition-all ${
+                  className={`flex-1 rounded-lg border-2 p-3 transition-all ${
                     paymentMethod === "bank"
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"
                   }`}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    <Building2 className="h-5 w-5" />
-                    <span className="font-medium">Bank transfer</span>
+                    <Building2 className="h-4 w-4" />
+                    <span className="font-medium text-sm">Bank transfer</span>
                   </div>
                 </button>
                 
                 <button
-                  className="rounded-lg border-2 border-border p-4 hover:border-primary/50 transition-all"
+                  className="rounded-lg border-2 border-border p-3 hover:border-primary/50 transition-all"
                 >
-                  <MoreHorizontal className="h-5 w-5" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </button>
               </div>
 
               {/* Payment Form */}
               {paymentMethod === "privy" && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {!isBuyer && (
-                    <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="h-5 w-5 text-warning mt-0.5" />
+                    <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
-                          <p className="font-medium mb-1">Connect Wallet to Pay</p>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            This invoice is for a different address. Please connect the buyer wallet to proceed.
+                          <p className="text-sm font-medium mb-1">Connect the buyer wallet</p>
+                          <p className="text-xs text-muted-foreground">
+                            Buyer address: <span className="font-mono">{invoice.buyer.slice(0, 6)}...{invoice.buyer.slice(-4)}</span>
                           </p>
-                          {ready && !authenticated && (
-                            <Button 
-                              onClick={async () => {
-                                try {
-                                  await login()
-                                  toast.success("Please connect your wallet to pay this invoice")
-                                } catch (error: any) {
-                                  console.error("Login error:", error)
-                                  toast.error("Failed to connect wallet", {
-                                    description: error?.message || "Please try again"
-                                  })
-                                }
-                              }}
-                              variant="hero"
-                              className="w-full sm:w-auto"
-                            >
-                              Connect Wallet with Privy
-                            </Button>
-                          )}
-                          {ready && authenticated && address && (
-                            <div className="mt-3">
-                              <p className="text-xs text-muted-foreground mb-2">Connected: {address}</p>
-                              <Button 
-                                onClick={async () => {
-                                  try {
-                                    await login()
-                                  } catch (error: any) {
-                                    toast.error("Failed to connect wallet")
-                                  }
-                                }}
-                                variant="outline"
-                                size="sm"
-                              >
-                                Switch Wallet
-                              </Button>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -573,24 +544,24 @@ export default function PayInvoice() {
                   {isBuyer && (
                     <>
                       {step === "approve" && needsApproval && (
-                        <div className="space-y-3">
-                          <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
+                        <div className="space-y-2">
+                          <div className="rounded-lg border border-warning/20 bg-warning/5 p-2">
                             <div className="flex items-center gap-2">
-                              <AlertCircle className="h-4 w-4 text-warning" />
-                              <span className="text-sm font-medium">Approve USDC to continue</span>
+                              <AlertCircle className="h-3.5 w-3.5 text-warning" />
+                              <span className="text-xs font-medium">Approve USDC to continue</span>
                             </div>
                           </div>
                           <Button
                             onClick={handleApprove}
                             disabled={isApproving || isApprovalConfirming}
                             className="w-full"
-                            size="lg"
+                            size="default"
                             variant="hero"
                           >
                             {isApproving || isApprovalConfirming ? (
                               <>
-                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                {isApproving ? "Waiting for wallet..." : "Confirming..."}
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                {isApproving ? "Waiting..." : "Confirming..."}
                               </>
                             ) : (
                               `Approve $${amountDisplay.toLocaleString()} USDC`
@@ -604,28 +575,28 @@ export default function PayInvoice() {
                           onClick={handlePay}
                           disabled={isPaying || isPaymentConfirming || needsApproval}
                           className="w-full"
-                          size="lg"
+                          size="default"
                           variant="hero"
                         >
                           {isPaying || isPaymentConfirming ? (
                             <>
-                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                              {isPaying ? "Waiting for wallet..." : "Confirming payment..."}
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              {isPaying ? "Waiting..." : "Confirming..."}
                             </>
                           ) : (
                             <>
-                              <DollarSign className="mr-2 h-5 w-5" />
-                              Pay ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
+                              <DollarSign className="mr-2 h-4 w-4" />
+                              Pay ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </>
                           )}
                         </Button>
                       )}
 
                       {step === "complete" && (
-                        <div className="rounded-lg border border-success/20 bg-success/5 p-4 text-center">
-                          <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
-                          <h3 className="mt-3 text-lg font-semibold">Payment Complete!</h3>
-                          <p className="mt-1 text-sm text-muted-foreground">
+                        <div className="rounded-lg border border-success/20 bg-success/5 p-3 text-center">
+                          <CheckCircle2 className="mx-auto h-8 w-8 text-success" />
+                          <h3 className="mt-2 text-base font-semibold">Payment Complete!</h3>
+                          <p className="mt-1 text-xs text-muted-foreground">
                             Settlement is being finalized on-chain.
                           </p>
                         </div>
@@ -636,56 +607,59 @@ export default function PayInvoice() {
               )}
 
               {paymentMethod === "card" && (
-                <div className="space-y-4">
-                  <div className="rounded-lg border border-muted bg-muted/30 p-4">
-                    <p className="text-sm text-muted-foreground">
-                      Card payments are demo only. Please use Privy wallet to complete payment.
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-muted bg-muted/30 p-2">
+                    <p className="text-xs text-muted-foreground">
+                      Card payments are demo only. Please use Wallet to complete payment.
                     </p>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Card number</label>
+                      <label className="text-xs font-medium mb-1 block">Card number</label>
                       <Input
                         placeholder="1234 1234 1234 1234"
                         value={cardNumber}
                         onChange={(e) => setCardNumber(e.target.value)}
                         disabled
+                        className="h-9"
                       />
-                      <div className="flex gap-2 mt-2">
-                        <div className="h-6 w-10 bg-muted rounded"></div>
-                        <div className="h-6 w-10 bg-muted rounded"></div>
-                        <div className="h-6 w-10 bg-muted rounded"></div>
-                        <div className="h-6 w-10 bg-muted rounded"></div>
+                      <div className="flex gap-2 mt-1.5">
+                        <div className="h-5 w-8 bg-muted rounded"></div>
+                        <div className="h-5 w-8 bg-muted rounded"></div>
+                        <div className="h-5 w-8 bg-muted rounded"></div>
+                        <div className="h-5 w-8 bg-muted rounded"></div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-sm font-medium mb-2 block">Expiration date</label>
+                        <label className="text-xs font-medium mb-1 block">Expiration date</label>
                         <Input
                           placeholder="MM / YY"
                           value={cardExpiry}
                           onChange={(e) => setCardExpiry(e.target.value)}
                           disabled
+                          className="h-9"
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-2 block">CVC</label>
+                        <label className="text-xs font-medium mb-1 block">CVC</label>
                         <Input
                           placeholder="CVC"
                           value={cardCVC}
                           onChange={(e) => setCardCVC(e.target.value)}
                           disabled
+                          className="h-9"
                         />
                       </div>
                     </div>
                   </div>
                   <Button
                     onClick={() => {
-                      toast.info("Card payments are demo only. Please use Privy wallet to pay.")
+                      toast.info("Card payments are demo only. Please use Wallet to pay.")
                       setPaymentMethod("privy")
                     }}
                     className="w-full"
-                    size="lg"
+                    size="default"
                     variant="hero"
                     disabled
                   >
@@ -695,19 +669,19 @@ export default function PayInvoice() {
               )}
 
               {paymentMethod === "bank" && (
-                <div className="space-y-4">
-                  <div className="rounded-lg border border-muted bg-muted/30 p-4">
-                    <p className="text-sm text-muted-foreground">
-                      Bank transfers are demo only. Please use Privy wallet to complete payment.
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-muted bg-muted/30 p-2">
+                    <p className="text-xs text-muted-foreground">
+                      Bank transfers are demo only. Please use Wallet to complete payment.
                     </p>
                   </div>
                   <Button
                     onClick={() => {
-                      toast.info("Bank transfers are demo only. Please use Privy wallet to pay.")
+                      toast.info("Bank transfers are demo only. Please use Wallet to pay.")
                       setPaymentMethod("privy")
                     }}
                     className="w-full"
-                    size="lg"
+                    size="default"
                     variant="hero"
                     disabled
                   >
@@ -719,12 +693,12 @@ export default function PayInvoice() {
           )}
 
           {invoice.status >= 2 && (
-            <div className="rounded-lg border border-success/20 bg-success/5 p-6 text-center">
-              <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
-              <h3 className="mt-4 text-xl font-semibold">
+            <div className="rounded-lg border border-success/20 bg-success/5 p-4 text-center">
+              <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
+              <h3 className="mt-2 text-base font-semibold">
                 {invoice.status === 3 ? "Invoice Cleared" : "Invoice Paid"}
               </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {invoice.status === 3 
                   ? "This invoice has been fully settled on-chain."
                   : "Payment has been received and settlement is in progress."}
@@ -733,9 +707,9 @@ export default function PayInvoice() {
           )}
 
           {/* Footer */}
-          <div className="text-center text-sm text-muted-foreground pb-8">
+          <div className="text-center text-xs text-muted-foreground mt-4">
             <p>Powered by SETTL.</p>
-            <div className="flex items-center justify-center gap-4 mt-2">
+            <div className="flex items-center justify-center gap-3 mt-1">
               <a href="#" className="hover:text-foreground transition-colors">Terms</a>
               <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
             </div>
