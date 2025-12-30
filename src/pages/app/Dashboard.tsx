@@ -46,6 +46,20 @@ export default function Dashboard() {
   const { score, tierLabel, stats, isLoading: isLoadingReputation } = useReputation()
   const { balance: usdcBalance, isLoading: isLoadingBalance, error: balanceError } = useTokenBalance()
 
+  // Use score from hook (includes frontend tracking updates)
+  // Default to 510 (Tier B) for now, then updates from there
+  const displayScore = score > 0 ? score : 510
+  
+  // Calculate tier from score (score 510 should be Tier B)
+  const displayTier = useMemo(() => {
+    if (displayScore < 500) return 'C'
+    if (displayScore < 850) return 'B'
+    return 'A'
+  }, [displayScore])
+  
+  // Use calculated tier for display (score 510 = Tier B)
+  const effectiveTierLabel = displayTier
+
   // Log errors for debugging
   useEffect(() => {
     if (invoiceError) console.error('Dashboard: Invoice fetch error:', invoiceError)
@@ -95,7 +109,7 @@ export default function Dashboard() {
       clearedVolume,
       advanceEligible,
     }
-  }, [invoices, displayScore])
+  }, [invoices, effectiveTierLabel])
 
   // Get recent invoices (4 most recent)
   const recentInvoices = useMemo(() => {
