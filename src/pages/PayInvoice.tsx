@@ -64,28 +64,75 @@ export default function PayInvoice() {
     ? wallets.find(w => w.address.toLowerCase() === address.toLowerCase()) || wallets[0]
     : wallets[0]
   
-  // Check if user is on the wrong network and prompt to switch
+  // Check if user is on the wrong network and automatically prompt to switch/add network
   useEffect(() => {
-    if (authenticated && address && chainId !== 5003 && switchChain) {
-      // User is connected but on wrong network
-      toast.error("Wrong Network", {
-        description: "Please switch to Mantle Sepolia Testnet (Chain ID: 5003) to continue.",
-        duration: 5000,
-        action: {
-          label: "Switch Network",
-          onClick: () => {
-            try {
-              switchChain({ chainId: 5003 })
-            } catch (error: any) {
-              console.error("Failed to switch chain:", error)
-              toast.error("Failed to switch network", {
-                description: "Please manually switch to Mantle Sepolia Testnet in MetaMask. Add network with Chain ID: 5003",
+    if (authenticated && address && chainId !== 5003) {
+      // User is connected but on wrong network - try to switch automatically
+      const switchToMantle = async () => {
+        try {
+          if (switchChain) {
+            await switchChain({ chainId: 5003 })
+          } else {
+            // If switchChain not available, try to add network via window.ethereum
+            const ethereum = (window as any).ethereum
+            if (ethereum && ethereum.request) {
+              try {
+                await ethereum.request({
+                  method: 'wallet_switchEthereumChain',
+                  params: [{ chainId: '0x138B' }], // 5003 in hex
+                })
+              } catch (switchError: any) {
+                // This error code indicates that the chain has not been added to MetaMask
+                if (switchError.code === 4902 || switchError.code === -32603) {
+                  try {
+                    await ethereum.request({
+                      method: 'wallet_addEthereumChain',
+                      params: [{
+                        chainId: '0x138B', // 5003 in hex
+                        chainName: 'Mantle Sepolia Testnet',
+                        nativeCurrency: {
+                          name: 'Mantle',
+                          symbol: 'MNT',
+                          decimals: 18,
+                        },
+                        rpcUrls: ['https://rpc.sepolia.mantle.xyz'],
+                        blockExplorerUrls: ['https://explorer.testnet.mantle.xyz'],
+                      }],
+                    })
+                  } catch (addError) {
+                    console.error("Failed to add network:", addError)
+                    toast.error("Please add Mantle Sepolia Testnet manually", {
+                      description: "Network details: Chain ID 5003, RPC: https://rpc.sepolia.mantle.xyz",
+                      duration: 10000,
+                    })
+                  }
+                } else {
+                  throw switchError
+                }
+              }
+            } else {
+              toast.error("Please switch to Mantle Sepolia Testnet", {
+                description: "Chain ID: 5003 | RPC: https://rpc.sepolia.mantle.xyz",
                 duration: 8000,
               })
             }
-          },
-        },
+          }
+        } catch (error: any) {
+          console.error("Failed to switch chain:", error)
+          toast.error("Wrong Network - Please switch to Mantle Sepolia Testnet", {
+            description: "Chain ID: 5003 | RPC: https://rpc.sepolia.mantle.xyz | Explorer: https://explorer.testnet.mantle.xyz",
+            duration: 10000,
+          })
+        }
+      }
+      
+      // Prompt user to switch network
+      toast.warning("Switching to Mantle Sepolia Testnet...", {
+        description: "Please confirm the network switch in MetaMask",
+        duration: 3000,
       })
+      
+      switchToMantle()
     }
   }, [authenticated, address, chainId, switchChain])
   
