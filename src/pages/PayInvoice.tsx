@@ -27,7 +27,7 @@ import { useReadContract, useWaitForTransactionReceipt, usePublicClient, useChai
 import { useSendTransaction, useWallets, usePrivy } from "@privy-io/react-auth"
 import { usePrivyAccount } from "@/hooks/usePrivyAccount"
 import { contractAddresses } from "@/lib/contracts"
-import { DemoUSDCABI, SettlementRouterABI, InvoiceRegistryABI } from "@/lib/abis"
+import { DemoUSDCABI, SettlementRouterABI, InvoiceRegistryABI, AdvanceEngineABI, VaultABI } from "@/lib/abis"
 import { formatUnits, parseUnits, isAddress, encodeFunctionData } from "viem"
 import { toast } from "sonner"
 import { Link } from "react-router-dom"
@@ -382,6 +382,54 @@ export default function PayInvoice() {
             setIsPaying(false)
             return
           }
+
+          // 5. Check if invoice has an advance and verify repayment is valid
+          try {
+            const repaymentAmount = await publicClient.readContract({
+              address: contractAddresses.AdvanceEngine as `0x${string}`,
+              abi: AdvanceEngineABI,
+              functionName: "getRepaymentAmount",
+              args: [BigInt(invoiceId)],
+            }) as bigint
+
+            if (repaymentAmount > 0n) {
+              // Invoice has an advance - check if it's already been repaid
+              const advance = await publicClient.readContract({
+                address: contractAddresses.AdvanceEngine as `0x${string}`,
+                abi: AdvanceEngineABI,
+                functionName: "getAdvance",
+                args: [BigInt(invoiceId)],
+              }) as any
+
+              if (advance?.repaid) {
+                toast.error("Advance already repaid", {
+                  description: "This invoice's advance has already been repaid. Payment may have already been processed.",
+                  duration: 8000,
+                })
+                setIsPaying(false)
+                return
+              }
+
+              // Check vault's totalBorrowed to ensure repayment won't exceed it
+              const vaultTotalBorrowed = await publicClient.readContract({
+                address: contractAddresses.Vault as `0x${string}`,
+                abi: VaultABI,
+                functionName: "getTotalBorrowed",
+              }) as bigint
+
+              if (vaultTotalBorrowed < repaymentAmount) {
+                toast.error("Repayment amount mismatch", {
+                  description: `Cannot repay ${formatUnits(repaymentAmount, 6)} USDC. Vault only has ${formatUnits(vaultTotalBorrowed, 6)} USDC borrowed. This invoice may have already been paid.`,
+                  duration: 10000,
+                })
+                setIsPaying(false)
+                return
+              }
+            }
+          } catch (advanceCheckError: any) {
+            // If getRepaymentAmount throws, invoice likely doesn't have an advance - that's fine
+            console.log("[Payment Pre-flight] Advance check:", advanceCheckError.message)
+          }
         } catch (preFlightError: any) {
           console.error("[Payment Pre-flight Check] Error:", preFlightError)
         }
@@ -428,6 +476,9 @@ export default function PayInvoice() {
       } else if (error.message?.includes("Execution reverted")) {
         errorMessage = "Transaction failed"
         errorDescription = "The transaction was rejected. Common causes: insufficient USDC allowance (try approving again), insufficient balance, or invoice already paid. Please check and try again."
+      } else if (error.message?.includes("Repay exceeds borrowed")) {
+        errorMessage = "Repayment error"
+        errorDescription = "Cannot repay the advance - the amount exceeds what was borrowed. This invoice may have already been paid. Please refresh the page and check the invoice status."
       }
       
       toast.error(errorMessage, {
