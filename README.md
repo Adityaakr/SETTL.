@@ -464,9 +464,22 @@ SETTL is configured for zero-config deployment to Vercel. The `vercel.json` file
    VITE_RECLAIM_PROVIDER_ID=your_provider_id
    ```
 
-4. **Deploy**:
+4. **Configure Privy Dashboard** (CRITICAL for production):
+   
+   ⚠️ **This step is required for Privy to work in production!**
+   
+   Go to [Privy Dashboard](https://dashboard.privy.io/) → Your App → Settings → **Allowed Origins**:
+   
+   - Add your Vercel production domain: `https://your-project.vercel.app`
+   - Add your Vercel preview domain pattern: `https://*.vercel.app` (for preview deployments)
+   - If using a custom domain, add that too: `https://yourdomain.com`
+   
+   **Without this, Privy will reject requests from your production domain!**
+
+5. **Deploy**:
    - Click "Deploy"
    - Your app will be live at `your-project.vercel.app`
+   - After deployment, make sure to add the Vercel domain to Privy's allowed origins if you haven't already
 
 #### Deploy via Vercel CLI
 

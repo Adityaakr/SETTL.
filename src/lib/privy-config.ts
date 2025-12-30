@@ -73,7 +73,11 @@ export const privyConfig = {
     },
     // Chain configuration - Mantle Sepolia Testnet (5003)
     // Note: Make sure Mantle Sepolia Testnet (5003) is enabled in your Privy dashboard
-    // IMPORTANT: Add http://localhost:8080 to allowed origins in Privy dashboard to fix origin mismatch
+    // IMPORTANT FOR PRODUCTION: Add your production domain to allowed origins in Privy dashboard
+    // - Go to Privy Dashboard → Your App → Settings → Allowed Origins
+    // - Add: https://your-project.vercel.app (production)
+    // - Add: https://*.vercel.app (preview deployments)
+    // Without this, Privy will reject requests from your production domain!
     defaultChain: mantleTestnetChain,
     supportedChains: [mantleTestnetChain],
   },
