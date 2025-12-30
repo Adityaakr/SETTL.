@@ -325,7 +325,10 @@ export function useActivity() {
         
         // Fetch events from last 10,000 blocks (~24-48 hours on Mantle Sepolia)
         // Increased range to capture more history
-        const fromBlock = Math.max(0n, currentBlock - BigInt(10000));
+        // Use BigInt comparison instead of Math.max (BigInt doesn't work with Math.max)
+        const blockRange = BigInt(10000);
+        const calculatedFromBlock = currentBlock > blockRange ? currentBlock - blockRange : 0n;
+        const fromBlock = calculatedFromBlock;
         console.log('[Activity] Fetching events from block', fromBlock.toString(), 'to', currentBlock.toString());
         
         const pastActivities: Activity[] = [];
