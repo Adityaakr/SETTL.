@@ -202,7 +202,12 @@ export default function Financing() {
           <h2 className="mb-6 text-lg font-semibold">Active Positions</h2>
           <div className="space-y-4">
             {activePositions.map((position) => (
-              <ActivePositionCard key={position.id} invoiceId={position.invoiceId} dueDate={position.dueDate} />
+              <ActivePositionCard 
+                key={position.id} 
+                invoiceId={position.invoiceId} 
+                dueDate={position.dueDate}
+                aprRange={aprRange}
+              />
             ))}
           </div>
         </div>
@@ -291,7 +296,15 @@ export default function Financing() {
 }
 
 // Component for active position card
-function ActivePositionCard({ invoiceId, dueDate }: { invoiceId: bigint; dueDate: string }) {
+function ActivePositionCard({ 
+  invoiceId, 
+  dueDate,
+  aprRange 
+}: { 
+  invoiceId: bigint
+  dueDate: string
+  aprRange: { min: number; max: number }
+}) {
   const { advance, isLoading } = useAdvance(invoiceId)
 
   if (isLoading) {
@@ -310,20 +323,10 @@ function ActivePositionCard({ invoiceId, dueDate }: { invoiceId: bigint; dueDate
 
   const advanceAmount = parseFloat(formatUnits(advance.advanceAmount, 6))
   const outstanding = parseFloat(formatUnits(advance.totalRepayment, 6))
-  const interest = parseFloat(formatUnits(advance.interest, 6))
-  const principal = parseFloat(formatUnits(advance.principal, 6))
   
-  // Calculate APR from interest and principal
-  // APR = (interest / principal) * (365 / daysUntilDue) * 100
-  // If interest is 0 or daysUntilDue is 0, show 0.0%
-  const daysUntilDue = Math.max(1, Math.ceil((new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-  let apr = "0.0"
-  if (principal > 0 && interest > 0 && daysUntilDue > 0) {
-    apr = ((interest / principal) * (365 / daysUntilDue) * 100).toFixed(1)
-  } else if (principal > 0 && interest === 0) {
-    // If interest is 0, APR is 0%
-    apr = "0.0"
-  }
+  // Use tier-based APR range instead of calculating from stored interest
+  // This ensures consistency with the current tier and avoids showing outdated APR values
+  const apr = `${aprRange.min}-${aprRange.max}%`
 
   return (
     <div className="rounded-xl border border-warning/20 bg-warning/5 p-5">
