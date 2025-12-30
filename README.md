@@ -227,27 +227,6 @@ flowchart TD
     style UpdateRep fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
 ```
 
-### Key Components
-
-**Smart Contracts:**
-- **InvoiceRegistry** - Invoice creation and state management
-- **InvoiceNFT (ERC721)** - Tokenized invoices (RWA)
-- **Vault** - Liquidity pool for invoice financing
-- **USMTPlus (ERC20)** - Receipt token for vault deposits (1:1 with USDC)
-- **Staking** - Staking contract for sUSMT+ (15-25% APY)
-- **AdvanceEngine** - Instant financing against invoices
-- **SettlementRouter** - Automated payment settlement waterfall
-- **Reputation** - On-chain credit scoring system
-
-**Frontend:**
-- **React + TypeScript** - UI framework
-- **Privy** - Embedded wallet infrastructure
-- **Wagmi** - Web3 React hooks
-- **Reclaim Protocol** - zkTLS proofs (optional)
-
-**Network:**
-- **Mantle Network** - Low-cost L2 blockchain (EVM-compatible)
-
 ---
 
 ## 🚀 Quick Start
@@ -434,84 +413,6 @@ npm run build
 
 # Preview production build locally
 npm run preview
-```
-
-The `dist/` directory contains the production build.
-
-### Deploy to Production
-
-**Option 1: Vercel (Recommended)**
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel
-```
-
-**Option 2: Netlify**
-
-```bash
-# Install Netlify CLI
-npm i -g netlify-cli
-
-# Deploy
-netlify deploy --prod
-```
-
-**Option 3: GitHub Pages**
-
-```bash
-# Build
-npm run build
-
-# Deploy (using gh-pages)
-npm install --save-dev gh-pages
-# Add to package.json scripts:
-# "deploy": "gh-pages -d dist"
-npm run deploy
-```
-
-**Option 4: Traditional Hosting**
-
-1. Build: `npm run build`
-2. Upload `dist/` directory to your web server
-3. Configure server to serve `index.html` for all routes (SPA routing)
-
----
-
-## 🔧 Development Workflow
-
-### Smart Contract Development
-
-```bash
-# Compile contracts
-npm run compile
-
-# Run tests (when available)
-npm test
-
-# Deploy to local Hardhat network
-npx hardhat node
-npx hardhat run scripts/deploy-all.ts --network localhost
-
-# Check contract size
-npx hardhat size-contracts
-```
-
-### Frontend Development
-
-```bash
-# Start dev server
-npm run dev
-
-# Run linter
-npm run lint
-
-# Type check
-npx tsc --noEmit
-```
 
 ### Testing the Complete Flow
 
@@ -583,32 +484,6 @@ React + TypeScript
     ├── Wagmi (Web3 Interactions)
     └── Reclaim Protocol (zkTLS proofs - optional)
 ```
-
----
-
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-**1. "Contract not deployed" error**
-- **Solution:** Run `npm run deploy` and update `.env` with contract addresses
-
-**2. "Insufficient funds" error**
-- **Solution:** Get Mantle Sepolia testnet ETH from [faucet](https://faucet.sepolia.mantle.xyz/)
-
-**3. "Network mismatch" error**
-- **Solution:** Ensure wallet is connected to Mantle Sepolia (Chain ID: 5003)
-
-**4. "Contract verification failed"**
-- **Solution:** Ensure contracts are fully confirmed, check API key, try again
-
-**5. Build errors**
-- **Solution:** Delete `node_modules` and `package-lock.json`, run `npm install` again
-
-**6. Environment variable issues**
-- **Solution:** Verify `.env` file exists, check variable names match exactly (case-sensitive)
-
----
 
 ## 🔐 Security Considerations
 
