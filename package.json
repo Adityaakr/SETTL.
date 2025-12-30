@@ -17,7 +17,7 @@
     "verify": "hardhat verify --network mantleSepolia",
     "fix:vault-minter": "hardhat run scripts/fix-vault-minter-role.cjs --network mantleSepolia",
     "check:vault": "hardhat run scripts/check-vault-config.cjs --network mantleSepolia",
-    "check:reputation": "hardhat run scripts/check-reputation-setup.cjs --network mantleSepolia",
+    "check:reputation": "hardhat run scripts/check-reputation-setup.cjs --network mantleSepolia --",
     "fix:reputation-role": "hardhat run scripts/fix-reputation-role.cjs --network mantleSepolia"
   },
   "dependencies": {
