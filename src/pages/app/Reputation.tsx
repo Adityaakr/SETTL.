@@ -27,21 +27,21 @@ const tiers = [
     name: "Tier C", 
     minScore: 0, 
     maxScore: 450,  // Tier C: 0-450
-    maxLTV: "50%", 
+    maxLTV: "35%", 
     apr: "14-18%",
   },
   { 
     name: "Tier B", 
     minScore: 500,  // Tier B: 500-850 (as shown in UI)
     maxScore: 850,
-    maxLTV: "75%", 
+    maxLTV: "55%", 
     apr: "10-14%",
   },
   { 
     name: "Tier A", 
     minScore: 850,  // Tier A: 850-1000
     maxScore: 1000, 
-    maxLTV: "85%", 
+    maxLTV: "90%", 
     apr: "6-10%",
   },
 ]
