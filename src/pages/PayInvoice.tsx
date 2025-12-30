@@ -216,22 +216,39 @@ export default function PayInvoice() {
           
           // Extract error reason from simulation
           const errorMessage = simError.message || simError.shortMessage || String(simError)
+          const errorData = simError.data || simError.cause?.data
+          const errorSignature = errorData?.error?.data || errorData
           
-          if (errorMessage.includes("Not invoice buyer") || errorMessage.includes("buyer")) {
+          console.log("Error details:", { errorMessage, errorData, errorSignature })
+          
+          // Check for specific error signatures or messages
+          // Error signature 0xfb8f41b2 is likely SafeERC20 transfer failure (insufficient allowance/balance)
+          if (errorSignature === "0xfb8f41b2" || errorSignature?.includes("0xfb8f41b2")) {
+            toast.error("Insufficient USDC allowance", {
+              description: "Please approve USDC spending first. Click 'Approve USDC' and wait for confirmation before paying.",
+              duration: 8000,
+            })
+            refetchAllowance()
+            setIsPaying(false)
+            return
+          }
+          
+          if (errorMessage.includes("Not invoice buyer") || errorMessage.includes("buyer") || errorSignature?.includes("Not invoice buyer")) {
             toast.error("Not the invoice buyer", {
               description: "Only the buyer address can pay this invoice. Please connect the correct wallet.",
             })
             setIsPaying(false)
             return
-          } else if (errorMessage.includes("Already cleared") || errorMessage.includes("cleared")) {
+          } else if (errorMessage.includes("Already cleared") || errorMessage.includes("cleared") || errorSignature?.includes("Already cleared")) {
             toast.error("Invoice already cleared", {
               description: "This invoice has already been paid and cleared.",
             })
             setIsPaying(false)
             return
-          } else if (errorMessage.includes("allowance") || errorMessage.includes("ERC20")) {
+          } else if (errorMessage.includes("allowance") || errorMessage.includes("ERC20") || errorMessage.includes("transfer")) {
             toast.error("Insufficient USDC allowance", {
-              description: "Please approve USDC spending first. The approval may still be processing.",
+              description: "Please approve USDC spending first. Click 'Approve USDC' and wait for confirmation before paying.",
+              duration: 8000,
             })
             refetchAllowance()
             setIsPaying(false)
@@ -243,8 +260,15 @@ export default function PayInvoice() {
             setIsPaying(false)
             return
           }
-          // If simulation fails with unknown error, continue to try actual transaction
-          // (sometimes simulation can fail even when transaction would succeed)
+          
+          // If simulation fails with unknown error, assume it's an allowance issue (most common)
+          toast.error("Transaction validation failed", {
+            description: "Please ensure you've approved USDC spending and have sufficient balance. Click 'Approve USDC' first if you haven't already.",
+            duration: 8000,
+          })
+          refetchAllowance()
+          setIsPaying(false)
+          return
         }
       }
 
