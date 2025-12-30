@@ -397,7 +397,8 @@ function EligibleInvoiceCard({
   const [isRequesting, setIsRequesting] = useState(false)
   const publicClient = usePublicClient({ chainId: 5003 })
   // Check if invoice already has an advance (if it does, it's already financed and not eligible)
-  const { advance: existingAdvance } = useAdvance(invoice.invoiceId)
+  // Note: useAdvance will error/revert if no advance exists, so we handle that gracefully
+  const { advance: existingAdvance, error: advanceError } = useAdvance(invoice.invoiceId)
 
   const hasEnoughLiquidity = availableLiquidity >= invoice.maxAdvance
 
@@ -417,17 +418,24 @@ function EligibleInvoiceCard({
   // Also check if invoice already has an advance (which means it's already financed)
   const isInvoiceIssued = useMemo(() => {
     // If invoice already has an advance, it's not eligible
-    if (existingAdvance && existingAdvance.advanceAmount > 0n) {
-      console.log(`Invoice ${invoice.invoiceId.toString()} already has an advance, not eligible`)
+    // Note: existingAdvance will only exist if there IS an advance, error means no advance
+    if (existingAdvance && existingAdvance.advanceAmount && existingAdvance.advanceAmount > 0n) {
+      console.log(`Invoice ${invoice.invoiceId.toString()} already has an advance (${existingAdvance.advanceAmount.toString()}), not eligible`)
       return false
     }
     
-    if (!invoiceData) return false // Don't allow if we can't verify status
+    if (!invoiceData) {
+      console.log(`Invoice ${invoice.invoiceId.toString()}: No invoiceData yet, button disabled`)
+      return false // Don't allow if we can't verify status
+    }
+    
     try {
       const status = (invoiceData as any).status
       // Handle both bigint and number types
       const statusNum = typeof status === 'bigint' ? Number(status) : Number(status)
-      return statusNum === 0
+      const isIssued = statusNum === 0
+      console.log(`Invoice ${invoice.invoiceId.toString()}: Status=${statusNum}, isIssued=${isIssued}`)
+      return isIssued
     } catch (e) {
       console.error('Error checking invoice status:', e)
       return false
