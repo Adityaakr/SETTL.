@@ -201,7 +201,112 @@ export default function PayInvoice() {
 
     setIsPaying(true)
     try {
-      // Simulate the transaction first to get better error messages
+      // Pre-flight validation: Check real contract state before attempting transaction
+      if (publicClient && address && invoice) {
+        try {
+          // 1. Check USDC balance
+          const balance = await publicClient.readContract({
+            address: contractAddresses.DemoUSDC as `0x${string}`,
+            abi: DemoUSDCABI,
+            functionName: "balanceOf",
+            args: [address],
+          }) as bigint
+
+          // 2. Check USDC allowance
+          const currentAllowance = await publicClient.readContract({
+            address: contractAddresses.DemoUSDC as `0x${string}`,
+            abi: DemoUSDCABI,
+            functionName: "allowance",
+            args: [address, contractAddresses.SettlementRouter as `0x${string}`],
+          }) as bigint
+
+          // 3. Check invoice status directly from contract
+          const InvoiceRegistryABI = [
+            {
+              inputs: [{ name: "invoiceId", type: "uint256" }],
+              name: "getInvoice",
+              outputs: [
+                {
+                  components: [
+                    { name: "invoiceId", type: "uint256" },
+                    { name: "seller", type: "address" },
+                    { name: "buyer", type: "address" },
+                    { name: "amount", type: "uint256" },
+                    { name: "dueDate", type: "uint256" },
+                    { name: "status", type: "uint8" },
+                    { name: "createdAt", type: "uint256" },
+                    { name: "paidAt", type: "uint256" },
+                    { name: "clearedAt", type: "uint256" },
+                  ],
+                  name: "",
+                  type: "tuple",
+                },
+              ],
+              stateMutability: "view",
+              type: "function",
+            },
+          ] as const
+
+          const onChainInvoice = await publicClient.readContract({
+            address: contractAddresses.InvoiceRegistry as `0x${string}`,
+            abi: InvoiceRegistryABI,
+            functionName: "getInvoice",
+            args: [BigInt(invoiceId)],
+          }) as any
+
+          console.log("[Payment Pre-flight Check]", {
+            balance: balance.toString(),
+            allowance: currentAllowance.toString(),
+            invoiceAmount: invoice.amount.toString(),
+            invoiceStatus: onChainInvoice.status,
+            invoiceBuyer: onChainInvoice.buyer,
+            connectedAddress: address,
+          })
+
+          // Validate checks
+          if (onChainInvoice.status === 3) {
+            toast.error("Invoice already cleared", {
+              description: "This invoice has already been paid and cleared.",
+            })
+            setIsPaying(false)
+            return
+          }
+
+          if (onChainInvoice.buyer.toLowerCase() !== address.toLowerCase()) {
+            toast.error("Not the invoice buyer", {
+              description: "Only the buyer address can pay this invoice. Please connect the correct wallet.",
+            })
+            setIsPaying(false)
+            return
+          }
+
+          if (balance < invoice.amount) {
+            toast.error("Insufficient USDC balance", {
+              description: `You have ${formatUnits(balance, 6)} USDC, but need ${formatUnits(invoice.amount, 6)} USDC to pay this invoice.`,
+            })
+            setIsPaying(false)
+            return
+          }
+
+          if (currentAllowance < invoice.amount) {
+            toast.error("Insufficient USDC allowance", {
+              description: `You have approved ${formatUnits(currentAllowance, 6)} USDC, but need ${formatUnits(invoice.amount, 6)} USDC. Please click 'Approve USDC' first.`,
+              duration: 8000,
+            })
+            refetchAllowance()
+            setIsPaying(false)
+            return
+          }
+
+          console.log("[Payment Pre-flight Check] ✓ All checks passed, proceeding with transaction")
+        } catch (preFlightError: any) {
+          console.error("[Payment Pre-flight Check] Error:", preFlightError)
+          // If pre-flight check fails, continue anyway (don't block the user)
+          // The transaction will fail with a clearer error if there's an issue
+        }
+      }
+
+      // Simulate the transaction to catch any other issues
       if (publicClient && address) {
         try {
           await publicClient.simulateContract({
@@ -211,19 +316,20 @@ export default function PayInvoice() {
             functionName: "payInvoice",
             args: [BigInt(invoiceId)],
           })
+          console.log("[Payment Simulation] ✓ Transaction simulation successful")
         } catch (simError: any) {
-          console.error("Transaction simulation failed:", simError)
+          console.error("[Payment Simulation] Failed:", simError)
           
           // Extract error reason from simulation
           const errorMessage = simError.message || simError.shortMessage || String(simError)
           const errorData = simError.data || simError.cause?.data
           const errorSignature = errorData?.error?.data || errorData
           
-          console.log("Error details:", { errorMessage, errorData, errorSignature })
+          console.log("[Payment Simulation] Error details:", { errorMessage, errorData, errorSignature })
           
           // Check for specific error signatures or messages
           // Error signature 0xfb8f41b2 is likely SafeERC20 transfer failure (insufficient allowance/balance)
-          if (errorSignature === "0xfb8f41b2" || errorSignature?.includes("0xfb8f41b2")) {
+          if (errorSignature === "0xfb8f41b2" || errorSignature?.includes("0xfb8f41b2") || errorMessage.includes("0xfb8f41b2")) {
             toast.error("Insufficient USDC allowance", {
               description: "Please approve USDC spending first. Click 'Approve USDC' and wait for confirmation before paying.",
               duration: 8000,
@@ -233,40 +339,25 @@ export default function PayInvoice() {
             return
           }
           
-          if (errorMessage.includes("Not invoice buyer") || errorMessage.includes("buyer") || errorSignature?.includes("Not invoice buyer")) {
+          if (errorMessage.includes("Not invoice buyer") || errorMessage.includes("buyer")) {
             toast.error("Not the invoice buyer", {
               description: "Only the buyer address can pay this invoice. Please connect the correct wallet.",
             })
             setIsPaying(false)
             return
-          } else if (errorMessage.includes("Already cleared") || errorMessage.includes("cleared") || errorSignature?.includes("Already cleared")) {
+          } else if (errorMessage.includes("Already cleared") || errorMessage.includes("cleared")) {
             toast.error("Invoice already cleared", {
               description: "This invoice has already been paid and cleared.",
             })
             setIsPaying(false)
             return
-          } else if (errorMessage.includes("allowance") || errorMessage.includes("ERC20") || errorMessage.includes("transfer")) {
-            toast.error("Insufficient USDC allowance", {
-              description: "Please approve USDC spending first. Click 'Approve USDC' and wait for confirmation before paying.",
-              duration: 8000,
-            })
-            refetchAllowance()
-            setIsPaying(false)
-            return
-          } else if (errorMessage.includes("balance") || errorMessage.includes("insufficient funds")) {
-            toast.error("Insufficient USDC balance", {
-              description: `You don't have enough USDC to pay this invoice. Required: $${amountDisplay.toLocaleString()}`,
-            })
-            setIsPaying(false)
-            return
           }
           
-          // If simulation fails with unknown error, assume it's an allowance issue (most common)
+          // If simulation fails with unknown error, show generic message
           toast.error("Transaction validation failed", {
-            description: "Please ensure you've approved USDC spending and have sufficient balance. Click 'Approve USDC' first if you haven't already.",
+            description: "The transaction simulation failed. Please check that you've approved USDC spending and have sufficient balance.",
             duration: 8000,
           })
-          refetchAllowance()
           setIsPaying(false)
           return
         }
