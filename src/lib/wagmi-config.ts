@@ -53,18 +53,12 @@ export const wagmiConfig = createConfig({
           wait: 50, // Batch requests within 50ms
           batchSize: 10, // Max 10 requests per batch
         },
-        fetchOptions: {
-          timeout: 10000, // 10s timeout for HTTP requests
-        },
       }),
       // Fallback: Additional HTTP endpoint for redundancy
       http('https://rpc.sepolia.mantle.xyz', {
         batch: {
           wait: 50,
           batchSize: 10,
-        },
-        fetchOptions: {
-          timeout: 10000,
         },
       }),
     ], {

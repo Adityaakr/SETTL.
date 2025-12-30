@@ -33,7 +33,7 @@ export function useAdvance(invoiceId: bigint | string | undefined) {
     args: invoiceId ? [BigInt(invoiceId.toString())] : undefined,
     query: {
       enabled: !!invoiceId && !!contractAddresses.AdvanceEngine,
-      refetchInterval: 30000, // Reduced frequency to avoid rate limits
+      refetchInterval: false, // Disable polling - rely on event subscriptions
     },
   });
 
@@ -83,7 +83,7 @@ export function useTotalDebt(sellerAddress?: string) {
     args: seller ? [seller as `0x${string}`] : undefined,
     query: {
       enabled: !!seller && !!contractAddresses.AdvanceEngine,
-      refetchInterval: 30000, // Reduced frequency to avoid rate limits
+      refetchInterval: false, // Disable polling - rely on event subscriptions
     },
   });
 

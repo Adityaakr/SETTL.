@@ -17,7 +17,7 @@ export function useTokenBalance() {
     args: address ? [address] : undefined,
     query: {
       enabled: !!address && !!contractAddresses.DemoUSDC,
-      refetchInterval: 20000, // Reduced frequency to avoid rate limits
+      refetchInterval: false, // Disable polling - rely on event subscriptions or manual refetch
     },
   });
 

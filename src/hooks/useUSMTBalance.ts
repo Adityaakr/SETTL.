@@ -17,7 +17,7 @@ export function useUSMTBalance() {
     args: address ? [address] : undefined,
     query: {
       enabled: !!address && !!contractAddresses.USMTPlus,
-      refetchInterval: 20000, // Reduced frequency to avoid rate limits
+      refetchInterval: false, // Disable polling - rely on event subscriptions or manual refetch
     },
   });
 
