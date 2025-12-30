@@ -465,7 +465,7 @@ export default function PayInvoice() {
               </Button>
               {authenticated && (
                 <Button 
-                  variant="ghost" 
+                  variant="outline" 
                   size="sm" 
                   onClick={async () => {
                     try {
@@ -479,7 +479,7 @@ export default function PayInvoice() {
                       })
                     }
                   }}
-                  className="h-8 text-xs px-3"
+                  className="h-8 text-sm font-medium px-3 border-border hover:bg-destructive/10 hover:text-destructive"
                 >
                   Logout
                 </Button>
