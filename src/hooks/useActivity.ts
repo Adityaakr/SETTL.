@@ -329,9 +329,9 @@ export function useActivity() {
           return timestamp;
         };
 
-        // Fetch InvoiceCreated events
+        // Fetch InvoiceCreated events (as seller)
         try {
-          const invoiceCreatedEvents = await publicClient.getLogs({
+          const invoiceCreatedEventsSeller = await publicClient.getLogs({
             address: contractAddresses.InvoiceRegistry as `0x${string}`,
             event: parseAbiItem('event InvoiceCreated(uint256 indexed invoiceId, address indexed seller, address indexed buyer, uint256 amount)'),
             args: {
@@ -340,6 +340,22 @@ export function useActivity() {
             fromBlock,
             toBlock: currentBlock,
           });
+          
+          // Fetch InvoiceCreated events (as buyer)
+          const invoiceCreatedEventsBuyer = await publicClient.getLogs({
+            address: contractAddresses.InvoiceRegistry as `0x${string}`,
+            event: parseAbiItem('event InvoiceCreated(uint256 indexed invoiceId, address indexed seller, address indexed buyer, uint256 amount)'),
+            args: {
+              buyer: address as `0x${string}`,
+            },
+            fromBlock,
+            toBlock: currentBlock,
+          });
+          
+          // Combine and deduplicate
+          const invoiceCreatedEvents = [...invoiceCreatedEventsSeller, ...invoiceCreatedEventsBuyer].filter(
+            (event, index, self) => index === self.findIndex((e) => e.transactionHash === event.transactionHash && e.index === event.index)
+          );
 
           for (const log of invoiceCreatedEvents) {
             const { invoiceId, seller, buyer, amount } = log.args as any;
@@ -408,11 +424,30 @@ export function useActivity() {
             toBlock: currentBlock,
           });
 
+          // Process InvoiceCleared events
           for (const log of invoiceClearedEvents) {
             const { invoiceId, seller, sellerAmount } = log.args as any;
             const timestamp = await getBlockTimestamp(log.blockNumber);
             pastActivities.push({
               id: `invoice-cleared-${invoiceId}-${log.transactionHash}-${log.index}`,
+              type: 'invoice_cleared',
+              title: `Invoice INV-${invoiceId.toString().padStart(10, '0')} Cleared`,
+              description: 'Payment received and settled',
+              amount: parseFloat(formatUnits(sellerAmount || 0n, 6)),
+              direction: 'in',
+              timestamp,
+              txHash: log.transactionHash,
+              blockNumber: log.blockNumber,
+            });
+          }
+          
+          // Process InvoiceSettled events (avoid duplicates with InvoiceCleared)
+          for (const log of invoiceSettledEvents) {
+            const { invoiceId, seller, sellerAmount } = log.args as any;
+            const timestamp = await getBlockTimestamp(log.blockNumber);
+            // Use different ID prefix to avoid duplicate with InvoiceCleared
+            pastActivities.push({
+              id: `invoice-settled-${invoiceId}-${log.transactionHash}-${log.index}`,
               type: 'invoice_cleared',
               title: `Invoice INV-${invoiceId.toString().padStart(10, '0')} Cleared`,
               description: 'Payment received and settled',
