@@ -74,7 +74,7 @@ export default function PayInvoice() {
 
   // Determine if approval is needed
   const needsApproval = invoice && allowance !== undefined && 
-    allowance < invoice.amount && invoice.status === 0 || invoice.status === 1
+    allowance < invoice.amount && (invoice.status === 0 || invoice.status === 1)
 
   // Watch for status changes
   useEffect(() => {
