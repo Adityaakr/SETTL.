@@ -71,8 +71,8 @@ export default function Dashboard() {
       return sum + parseFloat(formatUnits(inv.amount, 6))
     }, 0)
 
-    // Advance eligible (issued invoices, up to 75% LTV for tier B, 50% for tier C, 85% for tier A)
-    const ltvMap: Record<string, number> = { A: 0.85, B: 0.75, C: 0.50 }
+    // Advance eligible (issued invoices, up to 90% LTV for tier A, 55% for tier B, 35% for tier C)
+    const ltvMap: Record<string, number> = { A: 0.90, B: 0.55, C: 0.35 }
     const ltv = ltvMap[tierLabel] || 0.75
     const advanceEligible = outstandingInvoices.reduce((sum, inv) => {
       return sum + parseFloat(formatUnits(inv.amount, 6)) * ltv
