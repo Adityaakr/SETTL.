@@ -144,7 +144,13 @@ export default function Financing() {
         <StatCard
           title="Outstanding Advances"
           value={isLoading ? "..." : `$${stats.totalDebt.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-          subtitle={isLoading ? "Loading..." : `${stats.activeCount} active position${stats.activeCount !== 1 ? 's' : ''}`}
+          subtitle={
+            isLoading 
+              ? "Loading..." 
+              : stats.totalDebt > 0 && stats.activeCount === 0
+              ? "Awaiting settlement"
+              : `${stats.activeCount} active position${stats.activeCount !== 1 ? 's' : ''}`
+          }
           icon={Clock}
           variant="warning"
         />
