@@ -397,8 +397,9 @@ function EligibleInvoiceCard({
   const [isRequesting, setIsRequesting] = useState(false)
   const publicClient = usePublicClient({ chainId: 5003 })
   // Check if invoice already has an advance (if it does, it's already financed and not eligible)
-  // Note: useAdvance will error/revert if no advance exists, so we handle that gracefully
-  const { advance: existingAdvance, error: advanceError } = useAdvance(invoice.invoiceId)
+  // Note: useAdvance will error/revert if no advance exists, which is expected and fine
+  // We only care if existingAdvance exists and has an advanceAmount > 0
+  const { advance: existingAdvance } = useAdvance(invoice.invoiceId)
 
   const hasEnoughLiquidity = availableLiquidity >= invoice.maxAdvance
 
