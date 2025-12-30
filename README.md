@@ -436,21 +436,22 @@ SETTL is configured for zero-config deployment to Vercel. The `vercel.json` file
 
 3. **Configure Environment Variables**:
    
-   In Vercel project settings (Settings → Environment Variables), add:
+   In Vercel project settings (Settings → Environment Variables), add all required variables:
    
-   **Required:**
+   **Required - Network & Auth:**
    ```
    VITE_PRIVY_APP_ID=your_privy_app_id
-   VITE_MANTLE_CHAIN_ID=5003
+   VITE_MANTLE_RPC_URL=https://rpc.sepolia.mantle.xyz
+   VITE_CHAIN_ID=5003
    ```
    
-   **Contract Addresses (after deployment):**
+   **Required - Contract Addresses (after deployment):**
    ```
    VITE_DEMO_USDC_ADDRESS=0x...
-   VITE_INVOICE_REGISTRY_ADDRESS=0x...
    VITE_INVOICE_NFT_ADDRESS=0x...
-   VITE_VAULT_ADDRESS=0x...
+   VITE_INVOICE_REGISTRY_ADDRESS=0x...
    VITE_USMT_PLUS_ADDRESS=0x...
+   VITE_VAULT_ADDRESS=0x...
    VITE_STAKING_ADDRESS=0x...
    VITE_ADVANCE_ENGINE_ADDRESS=0x...
    VITE_REPUTATION_ADDRESS=0x...
@@ -463,6 +464,14 @@ SETTL is configured for zero-config deployment to Vercel. The `vercel.json` file
    VITE_RECLAIM_APP_SECRET=your_reclaim_secret
    VITE_RECLAIM_PROVIDER_ID=your_provider_id
    ```
+   
+   **Optional (for Supabase - if using):**
+   ```
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+   
+   **Note:** `DEPLOYER_PRIVATE_KEY` is NOT needed for Vercel deployment (only for local contract deployment).
 
 4. **Deploy**:
    - Click "Deploy"
@@ -484,7 +493,11 @@ vercel
 vercel --prod
 ```
 
-**Note:** Vercel automatically injects environment variables during build time. Make sure all `VITE_*` variables are set in the Vercel dashboard or via CLI.
+**Important Notes:**
+- Vercel automatically injects environment variables during build time
+- All `VITE_*` variables must be set in the Vercel dashboard or via CLI
+- `DEPLOYER_PRIVATE_KEY` is NOT needed for frontend deployment (only for local contract deployment)
+- Contract addresses should match your deployed contracts on Mantle Sepolia testnet
 
 ### Testing the Complete Flow
 
