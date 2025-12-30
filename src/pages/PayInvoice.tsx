@@ -164,8 +164,16 @@ export default function PayInvoice() {
     hash: approveHash,
   })
 
-  const { isLoading: isPaymentConfirming } = useWaitForTransactionReceipt({
+  const { 
+    isLoading: isPaymentConfirming, 
+    isSuccess: isPaymentConfirmed,
+    isError: isPaymentError,
+    error: paymentError
+  } = useWaitForTransactionReceipt({
     hash: payHash,
+    query: {
+      enabled: !!payHash, // Only wait if we have a transaction hash
+    },
   })
 
   // Determine if approval is needed
@@ -190,15 +198,31 @@ export default function PayInvoice() {
     }
   }, [approveHash, isApprovalConfirming, refetchAllowance])
 
-  // Handle payment success
+  // Handle payment transaction confirmation - ONLY show success when transaction is confirmed on-chain
   useEffect(() => {
-    if (payHash && !isPaymentConfirming) {
-      toast.success("Invoice paid!", {
-        description: "Settlement is processing...",
+    if (payHash && isPaymentConfirmed) {
+      // Transaction is confirmed on-chain
+      toast.success("Payment confirmed!", {
+        description: "Settlement is being finalized on-chain.",
       })
       setStep("complete")
+      // Refetch invoice to get updated status
+      if (invoiceId) {
+        setTimeout(() => {
+          window.location.reload() // Force refresh to get latest invoice status
+        }, 2000)
+      }
+    } else if (payHash && isPaymentError) {
+      // Transaction failed on-chain
+      console.error("Payment transaction failed:", paymentError)
+      toast.error("Payment failed", {
+        description: paymentError?.message || "Transaction was reverted. Please try again.",
+        duration: 8000,
+      })
+      setIsPaying(false)
+      setPayHash(undefined) // Reset so user can try again
     }
-  }, [payHash, isPaymentConfirming])
+  }, [payHash, isPaymentConfirmed, isPaymentError, paymentError, invoiceId])
 
   const handleApprove = async () => {
     if (!invoice || !contractAddresses.DemoUSDC || !contractAddresses.SettlementRouter) {
