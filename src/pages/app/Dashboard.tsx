@@ -1,5 +1,5 @@
 import { motion } from "framer-motion"
-import { useMemo } from "react"
+import { useMemo, useEffect } from "react"
 import { 
   FileText, 
   Plus, 
@@ -43,15 +43,16 @@ const item = {
 
 export default function Dashboard() {
   const { invoices, isLoading: isLoadingInvoices, error: invoiceError } = useSellerInvoicesWithData()
-  const { score, tierLabel, stats, isLoading: isLoadingReputation, error: reputationError } = useReputation()
+  const { score, tierLabel, stats, isLoading: isLoadingReputation } = useReputation()
   const { balance: usdcBalance, isLoading: isLoadingBalance, error: balanceError } = useTokenBalance()
 
   // Log errors for debugging
   useEffect(() => {
     if (invoiceError) console.error('Dashboard: Invoice fetch error:', invoiceError)
-    if (reputationError) console.error('Dashboard: Reputation fetch error:', reputationError)
     if (balanceError) console.error('Dashboard: Balance fetch error:', balanceError)
-  }, [invoiceError, reputationError, balanceError])
+    console.log('Dashboard: Loading state', { isLoadingInvoices, isLoadingReputation, isLoadingBalance })
+    console.log('Dashboard: Data state', { invoiceCount: invoices?.length, score, balance: usdcBalance })
+  }, [invoiceError, balanceError, isLoadingInvoices, isLoadingReputation, isLoadingBalance, invoices, score, usdcBalance])
 
   // Calculate stats from invoices
   const statsData = useMemo(() => {

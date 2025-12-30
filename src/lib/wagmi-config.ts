@@ -37,21 +37,11 @@ export const wagmiConfig = createConfig({
     [mantleTestnet.id]: fallback([
       // Primary: Mantle official RPC (HTTP - most reliable)
       http('https://rpc.sepolia.mantle.xyz', {
-        batch: {
-          multicall: true, // Enable batch multicall for better performance
-        },
-        fetchOptions: {
-          timeout: 10000, // 10 second timeout
-        },
+        batch: true, // Enable batch requests for better performance
       }),
       // Fallback: dRPC HTTP endpoint
       http('https://mantle-sepolia.drpc.org', {
-        batch: {
-          multicall: true,
-        },
-        fetchOptions: {
-          timeout: 10000,
-        },
+        batch: true,
       }),
     ]),
   },
