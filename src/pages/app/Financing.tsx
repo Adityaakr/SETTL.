@@ -49,7 +49,7 @@ export default function Financing() {
   const aprMap: Record<string, { min: number; max: number }> = {
     A: { min: 6, max: 8 },
     B: { min: 8, max: 12 },
-    C: { min: 12, max: 16 },
+    C: { min: 15.25, max: 18 },
   }
 
   const maxLTV = ltvMap[tierLabel] || 0.75
