@@ -129,20 +129,6 @@ export default function Dashboard() {
       }
     })
   }, [invoices])
-
-  // Use score from hook (includes frontend tracking updates)
-  // Default to 510 (Tier B) for now, then updates from there
-  const displayScore = score > 0 ? score : 510
-  
-  // Calculate tier from score (score 510 should be Tier B)
-  const displayTier = useMemo(() => {
-    if (displayScore < 500) return 'C'
-    if (displayScore < 850) return 'B'
-    return 'A'
-  }, [displayScore])
-  
-  // Use calculated tier for display (score 510 = Tier B)
-  const effectiveTierLabel = displayTier
   
   // Calculate progress to next tier (Tier A for Tier B users)
   const progressToNextTier = useMemo(() => {
