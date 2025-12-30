@@ -332,10 +332,13 @@ function ActivePositionCard({
   const advanceAmount = parseFloat(formatUnits(advance.advanceAmount, 6))
   
   // Recalculate interest and repayment using fixed APR (18% for Tier C) if applicable
+  // Use the same formula as the contract: interest = principal * APR * (daysUntilDue / 365)
   let outstanding = parseFloat(formatUnits(advance.totalRepayment, 6))
   if (aprRange.fixed) {
     // Recalculate using fixed APR (e.g., 18% for Tier C)
-    const daysUntilDue = Math.max(0, Math.ceil((dueDateTimestamp - Math.floor(Date.now() / 1000)) / 86400))
+    // Calculate from request time to due date (same as contract does)
+    const requestedAtTimestamp = Number(advance.requestedAt)
+    const daysUntilDue = Math.max(0, Math.floor((dueDateTimestamp - requestedAtTimestamp) / 86400))
     const principal = advanceAmount
     const interest = (principal * aprRange.fixed * daysUntilDue) / (100 * 365)
     outstanding = principal + interest
