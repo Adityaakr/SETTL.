@@ -319,6 +319,19 @@ export default function PayInvoice() {
     toast.success("Payment link copied!")
   }
 
+  // Debug: Log wallet comparison (must be before early returns)
+  useEffect(() => {
+    if (address && invoice) {
+      console.log('🔍 Wallet comparison:', {
+        connectedAddress: address,
+        invoiceBuyer: invoice.buyer,
+        connectedLower: address.toLowerCase(),
+        buyerLower: invoice.buyer.toLowerCase(),
+        isMatch: address.toLowerCase() === invoice.buyer.toLowerCase(),
+      })
+    }
+  }, [address, invoice])
+
   if (isLoadingInvoice) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -341,20 +354,6 @@ export default function PayInvoice() {
   }
 
   const amountDisplay = parseFloat(formatUnits(invoice.amount, 6))
-  
-  // Debug: Log wallet comparison
-  useEffect(() => {
-    if (address && invoice) {
-      console.log('🔍 Wallet comparison:', {
-        connectedAddress: address,
-        invoiceBuyer: invoice.buyer,
-        connectedLower: address.toLowerCase(),
-        buyerLower: invoice.buyer.toLowerCase(),
-        isMatch: address.toLowerCase() === invoice.buyer.toLowerCase(),
-      })
-    }
-  }, [address, invoice])
-  
   const isBuyer = address?.toLowerCase() === invoice.buyer.toLowerCase()
   const isPastDue = Number(invoice.dueDate) < Math.floor(Date.now() / 1000)
   const dueDate = new Date(Number(invoice.dueDate) * 1000)
