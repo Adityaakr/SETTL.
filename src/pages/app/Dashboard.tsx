@@ -61,7 +61,15 @@ export default function Dashboard() {
 
   // Use the higher of: hook score (from chain/frontend tracking) or calculated from invoices
   // This ensures we show the most accurate score
-  const displayScore = Math.max(score > 0 ? score : 450, calculatedScoreFromInvoices)
+  // Convert score to number if it's a bigint
+  const scoreNumber = score ? (typeof score === 'bigint' ? Number(score) : score) : 0
+  const displayScore = useMemo(() => {
+    const calculated = calculatedScoreFromInvoices
+    const hookScore = scoreNumber > 0 ? scoreNumber : 450
+    const finalScore = Math.max(hookScore, calculated)
+    console.log('📊 Dashboard displayScore calculation:', { hookScore, calculated, finalScore, clearedCount: clearedInvoicesForScore.length })
+    return finalScore
+  }, [scoreNumber, calculatedScoreFromInvoices, clearedInvoicesForScore.length])
   
   // Calculate tier from score (score 510 should be Tier B)
   const displayTier = useMemo(() => {
@@ -236,7 +244,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Reputation Score"
-          value={isLoading ? "..." : score.toString()}
+          value={isLoading ? "..." : displayScore.toString()}
           subtitle={isLoading ? "Loading..." : `Tier ${effectiveTierLabel}`}
           icon={TrendingUp}
         />
