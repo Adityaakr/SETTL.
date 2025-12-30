@@ -44,25 +44,26 @@ export const privyConfig = {
       accentColor: '#22c55e', // Green theme to match SETTL. branding
       logo: '/set.png', // SETTL. logo
     },
-    loginMethods: ['email', 'sms', 'google', 'twitter', 'github'], // Removed 'wallet' to prevent auto-linking
+    loginMethods: ['email', 'sms', 'google', 'twitter', 'github', 'wallet'], // Added 'wallet' to allow MetaMask and other external wallets
     embeddedWallets: {
-      // CRITICAL: Force embedded wallet creation on email/social login
+      // Create embedded wallet on email/social login
       ethereum: {
-        createOnLogin: 'all-users', // Create embedded wallet for ALL users on login (including those with wallet-linked accounts)
+        createOnLogin: 'all-users', // Create embedded wallet for ALL users on login
       },
-      // Only create embedded wallets - don't auto-link external wallets
       requireUserPasswordOnCreate: false,
       noPromptOnSignature: true, // CRITICAL: Disable transaction prompts for embedded wallets - transactions sign automatically
     },
-    // Block external wallets from being used as primary connection
+    // Allow external wallets (MetaMask, etc.)
     externalWallets: {
       coinbaseWallet: {
-        connectionOptions: 'smartWalletOnly', // Only allow smart wallets, not direct connections
+        connectionOptions: 'all', // Allow both smart wallets and direct connections
       },
       walletConnect: {
-        connectionOptions: 'smartWalletOnly',
+        connectionOptions: 'all', // Allow both smart wallets and direct connections
       },
-      // MetaMask and other injected wallets should be blocked for email logins
+      metamask: {
+        connectionOptions: 'all', // Allow MetaMask connections
+      },
     },
     // Chain configuration - Mantle Sepolia Testnet (5003)
     // Note: Make sure Mantle Sepolia Testnet (5003) is enabled in your Privy dashboard
