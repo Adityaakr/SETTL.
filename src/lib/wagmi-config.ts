@@ -12,11 +12,14 @@ export const mantleTestnet = {
   },
   rpcUrls: {
     default: {
-      // Primary RPC: Alchemy
+      // Primary RPC: drpc.org (user-provided, reliable)
       http: [
+        'https://mantle-sepolia.drpc.org',
         'https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
+        'https://rpc.sepolia.mantle.xyz',
       ],
       webSocket: [
+        'wss://mantle-sepolia.drpc.org',
         'wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
       ],
     },
@@ -40,21 +43,33 @@ export const wagmiConfig = createConfig({
   chains: [mantleTestnet],
   transports: {
     [mantleTestnet.id]: fallback([
-      // Primary: WebSocket for event subscriptions (fastest for real-time data)
+      // Primary: drpc.org WebSocket (user-provided, reliable)
       // Wagmi automatically uses WebSocket for useWatchContractEvent
+      webSocket('wss://mantle-sepolia.drpc.org', {
+        reconnect: true,
+        retryCount: 3,
+      }),
+      // Fallback: Alchemy WebSocket
       webSocket('wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX', {
         reconnect: true,
         retryCount: 3,
       }),
-      // Primary: HTTP for reads and writes (more reliable, required for transactions)
+      // Primary: drpc.org HTTP (user-provided, reliable)
       // Wagmi automatically uses HTTP for useReadContract and useSendTransaction
-      http('https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX', {
+      http('https://mantle-sepolia.drpc.org', {
         batch: {
           wait: 50, // Batch requests within 50ms
           batchSize: 10, // Max 10 requests per batch
         },
       }),
-      // Fallback: Additional HTTP endpoint for redundancy
+      // Fallback: Alchemy HTTP
+      http('https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX', {
+        batch: {
+          wait: 50,
+          batchSize: 10,
+        },
+      }),
+      // Fallback: Official Mantle RPC
       http('https://rpc.sepolia.mantle.xyz', {
         batch: {
           wait: 50,
@@ -62,7 +77,7 @@ export const wagmiConfig = createConfig({
         },
       }),
     ], {
-      retryCount: 2, // Retry up to 2 times before failing
+      retryCount: 3, // Retry up to 3 times before failing
       rank: true, // Rank by response time (fastest first)
     }),
   },
