@@ -51,6 +51,9 @@ export default function PayInvoice() {
   const { sendTransaction } = useSendTransaction()
   const { wallets } = useWallets()
   const { login, logout, ready, authenticated } = usePrivy()
+  
+  // Check if actually logged in - use address or wallets as the source of truth
+  const isActuallyLoggedIn = authenticated && (address || wallets.length > 0)
   const publicClient = usePublicClient({ chainId: 5003 })
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
@@ -813,11 +816,20 @@ export default function PayInvoice() {
             )}
 
           {/* Footer */}
-          <div className="text-center text-xs text-muted-foreground mt-4">
-            <p>Powered by SETTL.</p>
-            <div className="flex items-center justify-center gap-3 mt-1">
-              <a href="#" className="hover:text-foreground transition-colors">Terms</a>
-              <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-left text-xs text-muted-foreground">
+              <p>Powered by SETTL.</p>
+              <div className="flex items-center gap-3 mt-1">
+                <a href="#" className="hover:text-foreground transition-colors">Terms</a>
+                <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-2 w-2 rounded-full bg-current" style={{ 
+                backgroundColor: isActuallyLoggedIn ? '#22c55e' : '#ef4444',
+                opacity: isActuallyLoggedIn ? 1 : 0.5
+              }} />
+              <span>{isActuallyLoggedIn ? 'Connected' : 'Not connected'}</span>
             </div>
           </div>
         </motion.div>
