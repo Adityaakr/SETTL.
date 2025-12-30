@@ -347,7 +347,7 @@ export function useSellerInvoices(sellerAddress?: string) {
     args: seller ? [seller as `0x${string}`] : undefined,
     query: {
       enabled: !!seller && !!contractAddresses.InvoiceRegistry,
-      refetchInterval: 5000,
+      refetchInterval: 15000, // Increased to reduce load
     },
   });
 
@@ -380,17 +380,23 @@ export function useSellerInvoicesWithData(sellerAddress?: string) {
 
     const fetchInvoices = async () => {
       try {
-        // Fetch all invoices in parallel
+        // Fetch all invoices in parallel with timeout
         const invoicePromises = invoiceIds.map(async (invoiceId) => {
           try {
-            // @ts-ignore - Type assertion needed for publicClient.readContract
-            const invoice = await publicClient.readContract({
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise<null>((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 10000)
+            );
+            
+            const fetchPromise = publicClient.readContract({
               address: contractAddresses.InvoiceRegistry as `0x${string}`,
               abi: InvoiceRegistryABI,
               functionName: 'getInvoice',
               args: [invoiceId],
-            }) as Invoice;
-            return invoice as Invoice;
+            }) as Promise<Invoice>;
+            
+            const invoice = await Promise.race([fetchPromise, timeoutPromise]) as Invoice;
+            return invoice;
           } catch (err) {
             console.error(`Error fetching invoice ${invoiceId}:`, err);
             return null;
@@ -416,25 +422,20 @@ export function useSellerInvoicesWithData(sellerAddress?: string) {
       }
     };
 
-    fetchInvoices();
+    // Add a small delay to batch requests
+    const timeoutId = setTimeout(fetchInvoices, 100);
+    return () => clearTimeout(timeoutId);
   }, [invoiceIds, publicClient]);
 
-  // Watch for invoice events to refetch
+  // Watch for invoice events to refetch (simplified to reduce load)
+  // Only watch for critical events and debounce refetches
   useWatchContractEvent({
     address: contractAddresses.InvoiceRegistry as `0x${string}`,
     abi: InvoiceRegistryABI,
     eventName: 'InvoiceCreated',
     onLogs() {
-      refetchIds();
-    },
-  });
-
-  useWatchContractEvent({
-    address: contractAddresses.InvoiceRegistry as `0x${string}`,
-    abi: InvoiceRegistryABI,
-    eventName: 'InvoicePaid',
-    onLogs() {
-      refetchIds();
+      // Debounce refetch to avoid rapid calls
+      setTimeout(() => refetchIds(), 1000);
     },
   });
 
@@ -443,41 +444,8 @@ export function useSellerInvoicesWithData(sellerAddress?: string) {
     abi: InvoiceRegistryABI,
     eventName: 'InvoiceCleared',
     onLogs() {
-      refetchIds();
-      // Also trigger a refetch of invoice data when cleared
-      // This ensures the invoice status updates immediately
-      setTimeout(() => {
-        const fetchInvoices = async () => {
-          if (!invoiceIds || invoiceIds.length === 0 || !contractAddresses.InvoiceRegistry || !publicClient) return;
-          try {
-            const invoicePromises = invoiceIds.map(async (invoiceId) => {
-              try {
-                const invoice = await publicClient.readContract({
-                  address: contractAddresses.InvoiceRegistry as `0x${string}`,
-                  abi: InvoiceRegistryABI,
-                  functionName: 'getInvoice',
-                  args: [invoiceId],
-                }) as Invoice;
-                return invoice as Invoice;
-              } catch (err) {
-                return null;
-              }
-            });
-            const fetchedInvoices = await Promise.all(invoicePromises);
-            const validInvoices = fetchedInvoices
-              .filter((inv): inv is Invoice => inv !== null)
-              .sort((a, b) => {
-                const aTime = Number(a.createdAt);
-                const bTime = Number(b.createdAt);
-                return bTime - aTime;
-              });
-            setInvoices(validInvoices);
-          } catch (err) {
-            console.error('Error refetching invoices after clear:', err);
-          }
-        };
-        fetchInvoices();
-      }, 2000); // Wait 2 seconds for transaction to finalize
+      // Debounce refetch to avoid rapid calls
+      setTimeout(() => refetchIds(), 2000);
     },
   });
 

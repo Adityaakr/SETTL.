@@ -472,7 +472,7 @@ function EligibleInvoiceCard({
     args: [invoice.invoiceId],
     query: {
       enabled: !!invoice.invoiceId && !!contractAddresses.InvoiceRegistry,
-      refetchInterval: 3000, // Refetch every 3 seconds to get latest status
+      refetchInterval: 10000, // Reduced frequency to avoid rate limits
     },
   })
 

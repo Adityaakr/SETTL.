@@ -156,7 +156,7 @@ export default function PayInvoice() {
       : undefined,
     query: {
       enabled: !!address && !!contractAddresses.SettlementRouter && !!invoice,
-      refetchInterval: 3000,
+      refetchInterval: 10000, // Reduced frequency to avoid rate limits
     },
   })
   
