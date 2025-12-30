@@ -1,7 +1,7 @@
 import { useReadContract, useWatchContractEvent } from 'wagmi';
 import { usePrivyAccount } from './usePrivyAccount';
 import { contractAddresses } from '@/lib/contracts';
-import { ReputationABI } from '@/lib/abis';
+import { ReputationABI, InvoiceRegistryABI } from '@/lib/abis';
 
 export type ReputationTier = 0 | 1 | 2; // C | B | A
 
@@ -23,7 +23,7 @@ export function useReputation(sellerAddress?: string) {
   const { address } = usePrivyAccount();
   const seller = sellerAddress || address;
 
-  const { data: score, isLoading: isLoadingScore } = useReadContract({
+  const { data: score, isLoading: isLoadingScore, refetch: refetchScore } = useReadContract({
     address: contractAddresses.Reputation as `0x${string}`,
     abi: ReputationABI,
     functionName: 'getScore',
@@ -34,7 +34,7 @@ export function useReputation(sellerAddress?: string) {
     },
   });
 
-  const { data: tier, isLoading: isLoadingTier } = useReadContract({
+  const { data: tier, isLoading: isLoadingTier, refetch: refetchTier } = useReadContract({
     address: contractAddresses.Reputation as `0x${string}`,
     abi: ReputationABI,
     functionName: 'getTier',
@@ -64,14 +64,42 @@ export function useReputation(sellerAddress?: string) {
     onLogs(logs) {
       // Check if any event is for the current seller
       logs.forEach((log) => {
-        const [eventSeller] = log.args as any;
+        const [eventSeller, newScore, newTier, invoiceVolume] = log.args as any;
         if (eventSeller?.toLowerCase() === seller?.toLowerCase()) {
-          console.log('🎯 Reputation updated for seller, refetching...');
-          // Refetch all reputation data
+          console.log('🎯 Reputation updated!', {
+            seller: eventSeller,
+            newScore: newScore?.toString(),
+            newTier: newTier?.toString(),
+            invoiceVolume: invoiceVolume?.toString(),
+          });
+          // Immediately refetch all reputation data after a short delay to ensure blockchain state is updated
           setTimeout(() => {
-            // Refetch is handled by the query refetchInterval
-            // But we can trigger immediate refetch if needed
-          }, 1000);
+            refetchScore();
+            refetchTier();
+            refetchStats();
+          }, 2000);
+        }
+      });
+    },
+  });
+
+  // Also watch InvoiceCleared events as a backup trigger
+  // Reputation is updated when invoice is cleared, so this ensures we catch it
+  useWatchContractEvent({
+    address: contractAddresses.InvoiceRegistry as `0x${string}`,
+    abi: InvoiceRegistryABI,
+    eventName: 'InvoiceCleared',
+    onLogs(logs) {
+      logs.forEach((log) => {
+        const { seller: eventSeller } = log.args as any;
+        if (eventSeller?.toLowerCase() === seller?.toLowerCase()) {
+          console.log('📄 Invoice cleared for seller, will refetch reputation in 3s...');
+          // Reputation update happens in the same transaction, so wait a bit for it to be confirmed
+          setTimeout(() => {
+            refetchScore();
+            refetchTier();
+            refetchStats();
+          }, 3000);
         }
       });
     },
