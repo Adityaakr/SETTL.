@@ -337,10 +337,10 @@ export default function Dashboard() {
                 </div>
 
                 {/* Progress bar */}
-                {tierLabel !== 'A' && (
+                {effectiveTierLabel !== 'A' && (
                   <div className="mb-4 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Progress to Tier {tierLabel === 'C' ? 'B' : 'A'}</span>
+                      <span className="text-muted-foreground">Progress to Tier {effectiveTierLabel === 'C' ? 'B' : 'A'}</span>
                       <span className="font-medium">{pointsToNextTier} points to go</span>
                     </div>
                     <div className="h-3 overflow-hidden rounded-full bg-secondary">
@@ -355,7 +355,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-4 rounded-lg bg-secondary/50 p-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Current Tier</p>
-                    <p className="font-semibold">Tier B</p>
+                    <p className="font-semibold">Tier {effectiveTierLabel}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Max LTV</p>
