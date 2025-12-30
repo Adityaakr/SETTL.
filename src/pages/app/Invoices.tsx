@@ -114,7 +114,7 @@ export default function Invoices() {
     if (!invoices) return []
     
     return invoices.map((invoice) => ({
-      id: `INV-${invoice.invoiceId.toString().padStart(6, '0')}`,
+      id: `INV-${invoice.invoiceId.toString().padStart(10, '0')}`, // 10 digits to match PDF format
       invoiceId: invoice.invoiceId,
       buyer: invoice.buyer,
       seller: invoice.seller,
