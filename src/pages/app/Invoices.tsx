@@ -267,8 +267,8 @@ export default function Invoices() {
                 <div className="flex items-center gap-2">
                   Invoice
                   {contractAddresses.InvoiceNFT && (
-                    <span className="text-xs text-purple-600 dark:text-purple-400" title="Invoices are tokenized as NFTs">
-                      🎨 NFT
+                    <span className="text-xs text-purple-600 dark:text-purple-400" title="Invoices are tokenized">
+                      🎨 Tokenized
                     </span>
                   )}
                 </div>
@@ -427,10 +427,10 @@ function InvoiceNFTBadge({ invoiceId }: { invoiceId: bigint }) {
   return (
     <span 
       className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 text-xs font-medium text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700"
-      title="This invoice is tokenized as an NFT"
+      title="This invoice is tokenized"
     >
       <ImageIcon className="h-3 w-3" />
-      NFT
+      Tokenized
     </span>
   )
 }
