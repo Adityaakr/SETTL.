@@ -9,7 +9,10 @@ import {
   Loader2,
   ExternalLink,
   Copy,
-  AlertCircle
+  AlertCircle,
+  Calendar,
+  User,
+  Sparkles
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useInvoice } from "@/hooks/useInvoice"
@@ -35,6 +38,7 @@ export default function PayInvoice() {
   const navigate = useNavigate()
   const { address } = usePrivyAccount()
   const { invoice, isLoading: isLoadingInvoice } = useInvoice(invoiceId)
+  const { tokenId, nftAddress, isLoading: isLoadingNFT } = useInvoiceNFT(invoiceId ? BigInt(invoiceId) : undefined)
   const { sendTransaction } = useSendTransaction()
   const { wallets } = useWallets()
   const { login, ready, authenticated } = usePrivy()
@@ -232,6 +236,24 @@ export default function PayInvoice() {
   const amountDisplay = parseFloat(formatUnits(invoice.amount, 6))
   const isBuyer = address?.toLowerCase() === invoice.buyer.toLowerCase()
   const isPastDue = Number(invoice.dueDate) < Math.floor(Date.now() / 1000)
+  const dueDate = new Date(Number(invoice.dueDate) * 1000)
+  const createdAt = new Date(Number(invoice.createdAt) * 1000)
+  
+  // Get buyer metadata from localStorage
+  const getBuyerMetadata = () => {
+    try {
+      const stored = localStorage.getItem(`invoice_metadata_${invoiceId}`)
+      if (stored) {
+        return JSON.parse(stored)
+      }
+    } catch (e) {
+      console.error('Error reading buyer metadata:', e)
+    }
+    return { buyerName: '', buyerEmail: '' }
+  }
+  
+  const buyerMetadata = invoice ? getBuyerMetadata() : { buyerName: '', buyerEmail: '' }
+  const buyerName = buyerMetadata.buyerName || ''
 
   return (
     <div className="min-h-screen bg-background">
@@ -241,25 +263,24 @@ export default function PayInvoice() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
+          {/* Compact Header */}
+          <div className="mb-4 flex items-center justify-between">
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
             </Button>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={copyPaymentLink}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copy Link
+              <Button variant="ghost" size="sm" onClick={copyPaymentLink}>
+                <Copy className="h-4 w-4" />
               </Button>
               {invoice && (
-                <Button variant="outline" size="sm" asChild>
+                <Button variant="ghost" size="sm" asChild>
                   <a
                     href={`https://explorer.testnet.mantle.xyz/address/${contractAddresses.InvoiceRegistry}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    View on Explorer
+                    <ExternalLink className="h-4 w-4" />
                   </a>
                 </Button>
               )}
@@ -267,51 +288,64 @@ export default function PayInvoice() {
           </div>
 
           {/* Invoice Card */}
-          <div className="rounded-xl border border-border bg-card p-8 shadow-lg">
-            <div className="mb-6 flex items-start justify-between">
-              <div>
-                <h1 className="text-3xl font-bold">Invoice #{invoiceId}</h1>
-                <p className="mt-2 text-muted-foreground">
-                  Created {new Date(Number(invoice.createdAt) * 1000).toLocaleDateString()}
-                </p>
+          <div className="rounded-xl border border-border bg-card p-6 shadow-lg">
+            {/* Header: Invoice ID, Tokenized Badge, Status */}
+            <div className="mb-4 flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-2xl font-bold">Invoice #{invoiceId}</h1>
+                  {tokenId && (
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      <Sparkles className="h-3 w-3" />
+                      Tokenized #{tokenId.toString()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    Due {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                  {buyerName && (
+                    <div className="flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5" />
+                      {buyerName}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="text-right">
-                <div className={`inline-flex items-center gap-2 rounded-full px-4 py-2 ${
+                <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm ${
                   invoice.status === 3 ? "bg-success/10 text-success" :
                   invoice.status === 2 ? "bg-primary/10 text-primary" :
                   invoice.status === 1 ? "bg-warning/10 text-warning" :
                   "bg-muted text-muted-foreground"
                 }`}>
-                  {invoice.status === 3 && <CheckCircle2 className="h-4 w-4" />}
-                  {invoice.status === 2 && <Clock className="h-4 w-4" />}
+                  {invoice.status === 3 && <CheckCircle2 className="h-3.5 w-3.5" />}
+                  {invoice.status === 2 && <Clock className="h-3.5 w-3.5" />}
                   <span className="font-medium">{STATUS_LABELS[invoice.status]}</span>
                 </div>
               </div>
             </div>
 
-            {/* Amount */}
-            <div className="mb-6 rounded-lg bg-secondary/50 p-6">
-              <p className="text-sm text-muted-foreground">Amount Due</p>
-              <p className="mt-2 text-4xl font-bold">
-                ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
-                <span className="ml-2 text-xl font-normal text-muted-foreground">USDC</span>
+            {/* Amount - More Compact */}
+            <div className="mb-4 rounded-lg bg-secondary/50 p-4">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount Due</p>
+              <p className="mt-1 text-3xl font-bold">
+                ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <span className="ml-2 text-lg font-normal text-muted-foreground">USDC</span>
               </p>
             </div>
 
             {/* Payment Actions */}
             {isBuyer && invoice.status < 2 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {step === "approve" && needsApproval && (
-                  <div className="space-y-4">
-                    <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="mt-0.5 h-5 w-5 text-warning" />
-                        <div>
-                          <h3 className="font-semibold">Step 1: Approve USDC</h3>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            Approve the Settlement Router to spend your USDC for payment.
-                          </p>
-                        </div>
+                  <div className="space-y-3">
+                    <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-warning" />
+                        <span className="text-sm font-medium">Approve USDC to continue</span>
                       </div>
                     </div>
                     <Button
@@ -336,12 +370,12 @@ export default function PayInvoice() {
                 )}
 
                 {(step === "pay" || !needsApproval) && (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {!needsApproval && (
-                      <div className="rounded-lg border border-success/20 bg-success/5 p-4">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-5 w-5 text-success" />
-                          <span className="font-medium">USDC Approved</span>
+                      <div className="rounded-lg border border-success/20 bg-success/5 p-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-success" />
+                          <span className="text-sm font-medium">USDC Approved</span>
                         </div>
                       </div>
                     )}
@@ -368,11 +402,11 @@ export default function PayInvoice() {
                 )}
 
                 {step === "complete" && (
-                  <div className="rounded-lg border border-success/20 bg-success/5 p-6 text-center">
-                    <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
-                    <h3 className="mt-4 text-xl font-semibold">Payment Complete!</h3>
-                    <p className="mt-2 text-muted-foreground">
-                      Your payment has been processed. Settlement is being finalized on-chain.
+                  <div className="rounded-lg border border-success/20 bg-success/5 p-4 text-center">
+                    <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
+                    <h3 className="mt-3 text-lg font-semibold">Payment Complete!</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Settlement is being finalized on-chain.
                     </p>
                   </div>
                 )}
@@ -381,55 +415,29 @@ export default function PayInvoice() {
 
             {!isBuyer && invoice.status < 2 && (
               <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
-                <div className="text-center space-y-3">
-                  <p className="text-muted-foreground">
-                    This invoice is for a different address. Please connect the buyer wallet.
-                  </p>
+                <div className="text-center space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    Buyer address: <span className="font-mono">{invoice.buyer}</span>
+                    This invoice is for a different address. Please connect the buyer wallet.
                   </p>
                   {ready && !authenticated && (
                     <Button 
                       onClick={() => login()}
                       variant="hero"
-                      className="mt-2"
+                      size="sm"
                     >
                       Connect Wallet
                     </Button>
                   )}
-                  {ready && authenticated && (
-                    <p className="text-sm text-muted-foreground">
-                      Connected: <span className="font-mono">{address}</span>
-                      <br />
-                      <span className="text-xs text-warning">Please switch to the buyer wallet to pay this invoice.</span>
-                    </p>
-                  )}
                 </div>
               </div>
             )}
 
             {invoice.status >= 2 && (
-              <div className="rounded-lg border border-success/20 bg-success/5 p-6">
-                <div className="flex items-center justify-center gap-3">
-                  <CheckCircle2 className="h-6 w-6 text-success" />
-                  <span className="text-lg font-semibold">
-                    {invoice.status === 3 ? "Invoice Cleared" : "Invoice Paid"}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Settlement Waterfall Preview */}
-            {invoice.status >= 2 && (
-              <div className="mt-8">
-                <h3 className="mb-4 font-semibold">Settlement Breakdown</h3>
-                <WaterfallAnimation
-                  total={amountDisplay}
-                  fee={amountDisplay * 0.005} // 0.5% fee
-                  repayAmount={0} // TODO: Fetch from advance engine if financed
-                  isFinanced={invoice.status === 1 || invoice.status === 2}
-                  feePercentage={0.5}
-                />
+              <div className="rounded-lg border border-success/20 bg-success/5 p-4 text-center">
+                <CheckCircle2 className="mx-auto h-8 w-8 text-success" />
+                <p className="mt-2 font-semibold">
+                  {invoice.status === 3 ? "Invoice Cleared" : "Invoice Paid"}
+                </p>
               </div>
             )}
           </div>
