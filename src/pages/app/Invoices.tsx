@@ -117,10 +117,14 @@ export default function Invoices() {
       id: `INV-${invoice.invoiceId.toString().padStart(6, '0')}`,
       invoiceId: invoice.invoiceId,
       buyer: invoice.buyer,
+      seller: invoice.seller,
       amount: parseFloat(formatUnits(invoice.amount, 6)), // USDC has 6 decimals
+      amountRaw: invoice.amount, // Keep raw bigint for PDF
       status: STATUS_MAP[invoice.status] as "issued" | "financed" | "paid" | "cleared",
       dueDate: new Date(Number(invoice.dueDate) * 1000),
-      createdAt: new Date(Number(invoice.createdAt) * 1000),
+      createdDate: new Date(Number(invoice.createdAt) * 1000),
+      paidAt: invoice.paidAt,
+      clearedAt: invoice.clearedAt,
       link: `${window.location.origin}/pay/${invoice.invoiceId}`,
     }))
   }, [invoices])
@@ -350,54 +354,7 @@ export default function Invoices() {
                             View Details
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => {
-                            try {
-                              // Get metadata from localStorage
-                              let metadata = { buyerName: '', sellerName: '' }
-                              try {
-                                const stored = localStorage.getItem(`invoice_metadata_${invoice.invoiceId}`)
-                                if (stored) {
-                                  metadata = JSON.parse(stored)
-                                }
-                              } catch (e) {
-                                console.log('No metadata found for invoice', invoice.invoiceId)
-                              }
-                              
-                              // Find the original invoice data from the invoices array
-                              const originalInvoice = invoices?.find(inv => inv.invoiceId === invoice.invoiceId)
-                              if (!originalInvoice) {
-                                toast.error("Invoice data not found")
-                                return
-                              }
-                              
-                              downloadInvoicePDF({
-                                invoiceId: invoice.invoiceId.toString(),
-                                sellerName: metadata.sellerName || 'SETTL. Business',
-                                buyerName: metadata.buyerName || `${invoice.buyer.slice(0, 6)}...${invoice.buyer.slice(-4)}`,
-                                buyerAddress: invoice.buyer,
-                                sellerAddress: originalInvoice.seller,
-                                amount: originalInvoice.amount,
-                                amountFormatted: invoice.amount.toFixed(2),
-                                dueDate: invoice.dueDate,
-                                createdAt: invoice.createdAt,
-                                status: invoice.status,
-                                statusLabel: invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1),
-                                invoiceNumber: invoice.id,
-                                description: `Payment for ${invoice.id}`,
-                              })
-                              toast.success("Invoice PDF downloaded")
-                            } catch (error: any) {
-                              console.error("Error generating PDF:", error)
-                              toast.error("Failed to generate PDF", {
-                                description: error?.message || "Please try again"
-                              })
-                            }
-                          }}
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          Download PDF
-                        </DropdownMenuItem>
+                        <InvoicePDFDownloadButton invoice={invoice} />
                         <DropdownMenuItem onClick={() => copyLink(invoice.link)}>
                           <Copy className="mr-2 h-4 w-4" />
                           Copy Link
@@ -481,5 +438,77 @@ function InvoiceNFTBadge({ invoiceId }: { invoiceId: bigint }) {
       <ImageIcon className="h-3 w-3" />
       Tokenized
     </span>
+  )
+}
+
+// Component to handle PDF download with NFT token fetching
+function InvoicePDFDownloadButton({ invoice }: { invoice: { invoiceId: bigint; buyer: string; amount: number; amountRaw?: bigint; seller?: string; dueDate: Date; createdDate: Date; paidAt?: bigint; clearedAt?: bigint; status: string; id: string } }) {
+  const { tokenId, nftAddress } = useInvoiceNFT(invoice.invoiceId)
+  
+  return (
+    <DropdownMenuItem 
+      onClick={() => {
+        try {
+          // Get metadata from localStorage
+          let metadata = { buyerName: '', buyerEmail: '', sellerName: '' }
+          try {
+            const stored = localStorage.getItem(`invoice_metadata_${invoice.invoiceId}`)
+            if (stored) {
+              metadata = JSON.parse(stored)
+            }
+          } catch (e) {
+            console.log('No metadata found for invoice', invoice.invoiceId)
+          }
+          
+          const statusNumber = invoice.status === 'issued' ? 0 
+            : invoice.status === 'financed' ? 1
+            : invoice.status === 'paid' ? 2
+            : 3
+          
+          const paidAt = invoice.paidAt && invoice.paidAt > 0n
+            ? new Date(Number(invoice.paidAt) * 1000)
+            : undefined
+          const clearedAt = invoice.clearedAt && invoice.clearedAt > 0n
+            ? new Date(Number(invoice.clearedAt) * 1000)
+            : undefined
+          
+          const explorerLink = tokenId && nftAddress && BigInt(tokenId) > 0n
+            ? `https://explorer.testnet.mantle.xyz/token/${nftAddress}?a=${tokenId.toString()}`
+            : undefined
+          
+          downloadInvoicePDF({
+            invoiceId: invoice.invoiceId.toString(),
+            sellerName: metadata.sellerName || 'SETTL. Business',
+            buyerName: metadata.buyerName || `${invoice.buyer.slice(0, 6)}...${invoice.buyer.slice(-4)}`,
+            buyerEmail: metadata.buyerEmail || undefined,
+            buyerAddress: invoice.buyer,
+            sellerAddress: invoice.seller || '',
+            amount: invoice.amountRaw || BigInt(Math.round(invoice.amount * 1e6)),
+            amountFormatted: invoice.amount.toFixed(2),
+            dueDate: invoice.dueDate,
+            createdAt: invoice.createdDate,
+            paidAt,
+            clearedAt,
+            status: invoice.status,
+            statusNumber,
+            statusLabel: invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1),
+            invoiceNumber: invoice.id.replace('INV-', 'INV-').padStart(14, '0'), // Ensure 10 digits after INV-
+            description: `Payment for ${invoice.id}`,
+            tokenId: tokenId && BigInt(tokenId) > 0n ? tokenId.toString() : undefined,
+            nftAddress,
+            explorerLink,
+          })
+          toast.success("Invoice PDF downloaded")
+        } catch (error: any) {
+          console.error("Error generating PDF:", error)
+          toast.error("Failed to generate PDF", {
+            description: error?.message || "Please try again"
+          })
+        }
+      }}
+    >
+      <Download className="mr-2 h-4 w-4" />
+      Download PDF
+    </DropdownMenuItem>
   )
 }

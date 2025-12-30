@@ -629,20 +629,38 @@ export default function PayInvoice() {
                   onClick={() => {
                     if (!invoice) return
                     const createdAt = new Date(Number(invoice.createdAt) * 1000)
+                    const paidAt = invoice.paidAt && invoice.paidAt > 0n 
+                      ? new Date(Number(invoice.paidAt) * 1000) 
+                      : undefined
+                    const clearedAt = invoice.clearedAt && invoice.clearedAt > 0n 
+                      ? new Date(Number(invoice.clearedAt) * 1000) 
+                      : undefined
+                    
+                    const explorerLink = tokenId && nftAddress
+                      ? `https://explorer.testnet.mantle.xyz/token/${nftAddress}?a=${tokenId.toString()}`
+                      : undefined
+                    
                     downloadInvoicePDF({
                       invoiceId: invoice.invoiceId.toString(),
                       sellerName,
                       buyerName,
+                      buyerEmail: metadata.buyerEmail || undefined,
                       buyerAddress: invoice.buyer,
                       sellerAddress: invoice.seller,
                       amount: invoice.amount,
                       amountFormatted: amountDisplay.toFixed(2),
                       dueDate,
                       createdAt,
+                      paidAt,
+                      clearedAt,
                       status: invoice.status.toString(),
+                      statusNumber: invoice.status as number,
                       statusLabel: STATUS_LABELS[invoice.status as keyof typeof STATUS_LABELS],
-                      invoiceNumber: `INV-${invoice.invoiceId.toString().padStart(6, '0')}`,
+                      invoiceNumber: `INV-${invoice.invoiceId.toString().padStart(10, '0')}`,
                       description: `Payment for INV-${invoice.invoiceId.toString().padStart(6, '0')}`,
+                      tokenId: tokenId?.toString(),
+                      nftAddress,
+                      explorerLink,
                     })
                     toast.success("Invoice PDF downloaded")
                   }}
