@@ -385,15 +385,28 @@ export default function PayInvoice() {
 
           // 5. Check if invoice has an advance and verify repayment is valid
           try {
-            const repaymentAmount = await publicClient.readContract({
-              address: contractAddresses.AdvanceEngine as `0x${string}`,
-              abi: AdvanceEngineABI,
-              functionName: "getRepaymentAmount",
-              args: [BigInt(invoiceId)],
-            }) as bigint
+            // First check if advance exists and get repayment amount
+            let repaymentAmount = 0n
+            let advanceExists = false
+            
+            try {
+              repaymentAmount = await publicClient.readContract({
+                address: contractAddresses.AdvanceEngine as `0x${string}`,
+                abi: AdvanceEngineABI,
+                functionName: "getRepaymentAmount",
+                args: [BigInt(invoiceId)],
+              }) as bigint
+              
+              if (repaymentAmount > 0n) {
+                advanceExists = true
+              }
+            } catch (e) {
+              // No advance exists - that's fine
+              advanceExists = false
+            }
 
-            if (repaymentAmount > 0n) {
-              // Invoice has an advance - check if it's already been repaid
+            if (advanceExists && repaymentAmount > 0n) {
+              // Invoice has an advance - get full advance details
               const advance = await publicClient.readContract({
                 address: contractAddresses.AdvanceEngine as `0x${string}`,
                 abi: AdvanceEngineABI,
@@ -401,7 +414,8 @@ export default function PayInvoice() {
                 args: [BigInt(invoiceId)],
               }) as any
 
-              if (advance?.repaid) {
+              // Check if advance was already marked as repaid
+              if (advance.repaid) {
                 toast.error("Advance already repaid", {
                   description: "This invoice's advance has already been repaid. Payment may have already been processed.",
                   duration: 8000,
@@ -410,24 +424,40 @@ export default function PayInvoice() {
                 return
               }
 
-              // Check vault's totalBorrowed to ensure repayment won't exceed it
+              // Get the principal amount that was actually borrowed from vault
+              const principalBorrowed = advance.advanceAmount || advance.principal || 0n
+
+              // Check vault's totalBorrowed
+              // Note: Vault tracks only principal borrowed, but we repay principal + interest
+              // The vault check requires: totalBorrowed >= repaymentAmount (which includes interest)
+              // This will fail if another invoice was already repaid, reducing totalBorrowed
               const vaultTotalBorrowed = await publicClient.readContract({
                 address: contractAddresses.Vault as `0x${string}`,
                 abi: VaultABI,
                 functionName: "getTotalBorrowed",
               }) as bigint
 
+              // If vault's totalBorrowed is less than the repayment amount (principal + interest),
+              // this advance was likely already repaid or partially repaid
               if (vaultTotalBorrowed < repaymentAmount) {
-                toast.error("Repayment amount mismatch", {
-                  description: `Cannot repay ${formatUnits(repaymentAmount, 6)} USDC. Vault only has ${formatUnits(vaultTotalBorrowed, 6)} USDC borrowed. This invoice may have already been paid.`,
-                  duration: 10000,
-                })
+                // Check if at least the principal is still borrowed
+                if (vaultTotalBorrowed < principalBorrowed) {
+                  toast.error("Advance already repaid", {
+                    description: `The advance principal has been repaid. This invoice may have already been paid. Please refresh and check the invoice status.`,
+                    duration: 10000,
+                  })
+                } else {
+                  toast.error("Repayment amount mismatch", {
+                    description: `The vault cannot accept this repayment amount (${formatUnits(repaymentAmount, 6)} USDC) because it only has ${formatUnits(vaultTotalBorrowed, 6)} USDC borrowed. This may indicate the invoice was already paid. Please refresh the page.`,
+                    duration: 10000,
+                  })
+                }
                 setIsPaying(false)
                 return
               }
             }
           } catch (advanceCheckError: any) {
-            // If getRepaymentAmount throws, invoice likely doesn't have an advance - that's fine
+            // If getAdvance/getRepaymentAmount throws, invoice doesn't have an advance - that's fine
             console.log("[Payment Pre-flight] Advance check:", advanceCheckError.message)
           }
         } catch (preFlightError: any) {
