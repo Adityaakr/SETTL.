@@ -467,7 +467,8 @@ export default function PayInvoice() {
                   onClick={async () => {
                     try {
                       await logout()
-                      navigate('/')
+                      toast.success('Logged out successfully')
+                      // Stay on the same page - user can reconnect their wallet to pay
                     } catch (error: any) {
                       console.error('Logout error:', error)
                       toast.error('Failed to logout', {
