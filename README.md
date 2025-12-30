@@ -240,15 +240,7 @@ flowchart TD
 
 ---
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Node.js** 18+ and npm (install via [nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
-- **Git** for cloning the repository
-- **Hardhat** (installed automatically with dependencies)
-- **Mantle Network** testnet access (Mantle Sepolia)
-- **Wallet** with testnet ETH for gas fees
+##Quick Start
 
 ### Installation
 
