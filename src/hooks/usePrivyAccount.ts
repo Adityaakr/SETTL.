@@ -47,16 +47,36 @@ export function usePrivyAccount() {
     }
   }, [authenticated, loggedInWithEmail, embeddedWallet, wagmiAccount.address, setActiveWallet]);
 
+  // Find external wallet (MetaMask, etc.)
+  const externalWallet = wallets.find(w => {
+    const ct = w.connectorType?.toLowerCase() || '';
+    const wct = w.walletClientType?.toLowerCase() || '';
+    return ct === 'injected' || 
+           wct === 'metamask' ||
+           ct.includes('injected') ||
+           wct.includes('metamask');
+  });
+
+  // If user has connected an external wallet (like MetaMask), use it
+  // This allows MetaMask to work properly when explicitly connected
+  if (authenticated && externalWallet?.address && wagmiAccount.address?.toLowerCase() === externalWallet.address.toLowerCase()) {
+    return wagmiAccount;
+  }
+
   // Return the embedded wallet address if available and user logged in with email
-  // Otherwise fall back to Wagmi account
+  // Otherwise fall back to Wagmi account (which may be external wallet)
   if (authenticated && loggedInWithEmail && embeddedWallet?.address) {
-    return {
-      ...wagmiAccount,
-      address: embeddedWallet.address as `0x${string}`,
-      isConnected: true,
-      isConnecting: false,
-      isDisconnected: false,
-    };
+    // Only use embedded wallet if wagmiAccount is not an external wallet
+    // or if wagmiAccount address matches embedded wallet
+    if (!wagmiAccount.address || wagmiAccount.address.toLowerCase() === embeddedWallet.address.toLowerCase()) {
+      return {
+        ...wagmiAccount,
+        address: embeddedWallet.address as `0x${string}`,
+        isConnected: true,
+        isConnecting: false,
+        isDisconnected: false,
+      };
+    }
   }
 
   return wagmiAccount;
