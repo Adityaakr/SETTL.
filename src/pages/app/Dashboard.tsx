@@ -132,8 +132,8 @@ export default function Dashboard() {
 
   // Max LTV based on tier
   const maxLTV = useMemo(() => {
-    const ltvMap: Record<string, number> = { A: 85, B: 75, C: 50 }
-    return ltvMap[tierLabel] || 75
+    const ltvMap: Record<string, number> = { A: 90, B: 55, C: 35 }
+    return ltvMap[tierLabel] || 55
   }, [tierLabel])
 
   const isLoading = isLoadingInvoices || isLoadingReputation
