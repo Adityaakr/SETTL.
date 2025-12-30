@@ -442,8 +442,9 @@ function EligibleInvoiceCard({
         throw new Error("Unable to verify invoice status. Please try again.")
       }
 
-      // Refetch invoice status first to ensure we have latest data
-      await refetchInvoiceStatus()
+      // CRITICAL: Read invoice status directly from contract right before sending
+      // This ensures we have the absolute latest on-chain status
+      console.log(`[Advance Request] Starting status check for invoice ${invoice.invoiceId.toString()}`)
       
       const currentInvoice = await publicClient.readContract({
         address: contractAddresses.InvoiceRegistry as `0x${string}`,
@@ -452,7 +453,16 @@ function EligibleInvoiceCard({
         args: [invoice.invoiceId],
       }) as any
       
+      console.log(`[Advance Request] Invoice data received:`, {
+        invoiceId: currentInvoice?.invoiceId?.toString(),
+        status: currentInvoice?.status,
+        seller: currentInvoice?.seller,
+        buyer: currentInvoice?.buyer,
+        amount: currentInvoice?.amount?.toString()
+      })
+      
       if (!currentInvoice || !currentInvoice.invoiceId || currentInvoice.invoiceId === 0n) {
+        console.error(`[Advance Request] Invoice ${invoice.invoiceId.toString()} not found`)
         toast.error("Invoice not found", {
           description: "The invoice could not be found. Please refresh and try again.",
           duration: 8000,
@@ -466,10 +476,16 @@ function EligibleInvoiceCard({
       const statusValue = currentInvoice.status
       const invoiceStatus = typeof statusValue === 'bigint' ? Number(statusValue) : Number(statusValue)
       
-      console.log('Checking invoice status before advance request:', {
-        invoiceId: invoice.invoiceId.toString(),
-        status: invoiceStatus,
-        invoiceData: currentInvoice
+      console.log(`[Advance Request] Status check result for invoice ${invoice.invoiceId.toString()}:`, {
+        statusValue,
+        invoiceStatus,
+        isIssued: invoiceStatus === 0,
+        currentInvoice: {
+          invoiceId: currentInvoice.invoiceId.toString(),
+          status: invoiceStatus,
+          seller: currentInvoice.seller,
+          amount: currentInvoice.amount.toString()
+        }
       })
       
       if (invoiceStatus !== 0) {
@@ -479,6 +495,7 @@ function EligibleInvoiceCard({
           3: "Cleared"
         }
         const statusName = statusNames[invoiceStatus] || "Unknown"
+        console.error(`[Advance Request] BLOCKED: Invoice ${invoice.invoiceId.toString()} status is ${statusName} (${invoiceStatus}), not Issued (0)`)
         toast.error("Invoice status changed", {
           description: `This invoice is no longer eligible for advance. Current status: ${statusName}. The invoice may have been paid or financed already. Please refresh the page.`,
           duration: 10000,
@@ -486,6 +503,8 @@ function EligibleInvoiceCard({
         setIsRequesting(false)
         return
       }
+      
+      console.log(`[Advance Request] Status check PASSED for invoice ${invoice.invoiceId.toString()}, proceeding with requestAdvance...`)
       
       // Convert LTV percentage to basis points (e.g., 0.75 = 7500)
       const ltvBps = Math.floor(maxLTV * 10000)
