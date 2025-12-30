@@ -15,8 +15,10 @@ export const mantleTestnet = {
       // Multiple RPC endpoints for redundancy and failover
       http: [
         'https://rpc.sepolia.mantle.xyz',
-        'https://mantle-sepolia.g.alchemy.com/v2/lA12jxcK7XSr4_xdTRtMG',
         'https://mantle-sepolia.drpc.org',
+      ],
+      webSocket: [
+        'wss://mantle-sepolia.drpc.org',
       ],
     },
   },
@@ -30,17 +32,18 @@ export const mantleTestnet = {
 } as const;
 
 // Create Wagmi config using Privy's createConfig
-// Use WebSocket for subscriptions/reads (more efficient) and HTTP for writes
+// Use WebSocket for subscriptions/reads (data fetching) and HTTP for writes (transactions)
 // fallback provides automatic failover between endpoints
 export const wagmiConfig = createConfig({
   chains: [mantleTestnet],
   transports: {
     [mantleTestnet.id]: fallback([
+      // WebSocket for reads/subscriptions (data fetching) - primary
+      webSocket('wss://mantle-sepolia.drpc.org'),
       // HTTP for writes/transactions (more reliable for submissions)
       // Primary: Mantle official RPC
       http('https://rpc.sepolia.mantle.xyz'),
-      // Fallbacks
-      http('https://mantle-sepolia.g.alchemy.com/v2/lA12jxcK7XSr4_xdTRtMG'),
+      // Fallback: dRPC HTTP endpoint
       http('https://mantle-sepolia.drpc.org'),
     ]),
   },

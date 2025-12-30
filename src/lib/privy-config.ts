@@ -11,19 +11,25 @@ const mantleTestnetChain = {
   },
   rpcUrls: {
     default: {
-      // Multiple RPC endpoints for redundancy and failover
+      // RPC endpoints for writes/transactions
       http: [
         'https://rpc.sepolia.mantle.xyz',
-        'https://mantle-sepolia.g.alchemy.com/v2/lA12jxcK7XSr4_xdTRtMG',
         'https://mantle-sepolia.drpc.org',
+      ],
+      // WebSocket for reads/subscriptions (data fetching)
+      webSocket: [
+        'wss://mantle-sepolia.drpc.org',
       ],
     },
     public: {
-      // Multiple RPC endpoints for redundancy and failover
+      // RPC endpoints for writes/transactions
       http: [
         'https://rpc.sepolia.mantle.xyz',
-        'https://mantle-sepolia.g.alchemy.com/v2/lA12jxcK7XSr4_xdTRtMG',
         'https://mantle-sepolia.drpc.org',
+      ],
+      // WebSocket for reads/subscriptions (data fetching)
+      webSocket: [
+        'wss://mantle-sepolia.drpc.org',
       ],
     },
   },
