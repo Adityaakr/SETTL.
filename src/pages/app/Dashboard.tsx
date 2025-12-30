@@ -71,8 +71,8 @@ export default function Dashboard() {
       return sum + parseFloat(formatUnits(inv.amount, 6))
     }, 0)
 
-    // Advance eligible (issued invoices, up to 90% LTV for tier A, 55% for tier B, 35% for tier C)
-    const ltvMap: Record<string, number> = { A: 0.90, B: 0.55, C: 0.35 }
+    // Advance eligible (issued invoices, up to 85% LTV for tier A, 55% for tier B, 25% for tier C)
+    const ltvMap: Record<string, number> = { A: 0.85, B: 0.55, C: 0.25 }
     const ltv = ltvMap[tierLabel] || 0.75
     const advanceEligible = outstandingInvoices.reduce((sum, inv) => {
       return sum + parseFloat(formatUnits(inv.amount, 6)) * ltv
@@ -132,7 +132,7 @@ export default function Dashboard() {
 
   // Max LTV based on tier
   const maxLTV = useMemo(() => {
-    const ltvMap: Record<string, number> = { A: 90, B: 55, C: 35 }
+    const ltvMap: Record<string, number> = { A: 85, B: 55, C: 25 }
     return ltvMap[tierLabel] || 55
   }, [tierLabel])
 

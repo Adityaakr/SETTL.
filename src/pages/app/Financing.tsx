@@ -44,7 +44,7 @@ export default function Financing() {
   const { totalLiquidity, totalBorrowed, isLoading: isLoadingVault } = useVault()
 
   // Calculate max LTV and APR based on tier
-  const ltvMap: Record<string, number> = { A: 0.90, B: 0.55, C: 0.35 }
+  const ltvMap: Record<string, number> = { A: 0.85, B: 0.55, C: 0.25 }
   const aprMap: Record<string, { min: number; max: number }> = {
     A: { min: 6, max: 8 },
     B: { min: 8, max: 12 },
