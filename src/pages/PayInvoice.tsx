@@ -345,22 +345,43 @@ export default function PayInvoice() {
   const isPastDue = Number(invoice.dueDate) < Math.floor(Date.now() / 1000)
   const dueDate = new Date(Number(invoice.dueDate) * 1000)
   
-  // Get buyer and seller metadata from localStorage
+  // Get buyer metadata from localStorage
   const getInvoiceMetadata = () => {
     try {
+      // Try invoice ID first
       const stored = localStorage.getItem(`invoice_metadata_${invoiceId}`)
       if (stored) {
-        return JSON.parse(stored)
+        const parsed = JSON.parse(stored)
+        console.log('📋 Invoice metadata found for invoice', invoiceId, ':', parsed)
+        return parsed
+      }
+      
+      // Try with BigInt version
+      if (invoiceId) {
+        const storedBigInt = localStorage.getItem(`invoice_metadata_${BigInt(invoiceId).toString()}`)
+        if (storedBigInt) {
+          const parsed = JSON.parse(storedBigInt)
+          console.log('📋 Invoice metadata found (BigInt key):', parsed)
+          return parsed
+        }
       }
     } catch (e) {
       console.error('Error reading invoice metadata:', e)
     }
+    
+    console.log('⚠️ No invoice metadata found for invoice', invoiceId)
+    console.log('🔍 Available localStorage keys:', Object.keys(localStorage).filter(k => k.includes('invoice_metadata')))
     return { buyerName: '', buyerEmail: '', sellerName: '' }
   }
   
   const metadata = getInvoiceMetadata()
-  const buyerName = metadata.buyerName || invoice.buyer.slice(0, 6) + '...' + invoice.buyer.slice(-4)
-  const sellerName = metadata.sellerName || 'SETTL. Business'
+  // Show buyer name if available, otherwise show formatted wallet address
+  const buyerName = metadata.buyerName && metadata.buyerName.trim() !== '' 
+    ? metadata.buyerName 
+    : invoice.buyer.slice(0, 6) + '...' + invoice.buyer.slice(-4)
+  const sellerName = metadata.sellerName && metadata.sellerName.trim() !== '' 
+    ? metadata.sellerName 
+    : 'SETTL. Business'
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
