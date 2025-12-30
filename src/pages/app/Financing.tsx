@@ -121,6 +121,7 @@ export default function Financing() {
           invoiceId: invoice.invoiceId,
           id: `INV-${invoice.invoiceId.toString().padStart(6, '0')}`,
           dueDate: new Date(Number(invoice.dueDate) * 1000).toLocaleDateString(),
+          dueDateTimestamp: Number(invoice.dueDate),
         }
       })
   }, [invoices])
@@ -209,6 +210,7 @@ export default function Financing() {
                 key={position.id} 
                 invoiceId={position.invoiceId} 
                 dueDate={position.dueDate}
+                dueDateTimestamp={position.dueDateTimestamp}
                 aprRange={aprRange}
               />
             ))}
@@ -303,10 +305,12 @@ export default function Financing() {
 function ActivePositionCard({ 
   invoiceId, 
   dueDate,
+  dueDateTimestamp,
   aprRange 
 }: { 
   invoiceId: bigint
   dueDate: string
+  dueDateTimestamp: number
   aprRange: { min: number; max: number; fixed?: number }
 }) {
   const { advance, isLoading } = useAdvance(invoiceId)
@@ -326,7 +330,16 @@ function ActivePositionCard({
   }
 
   const advanceAmount = parseFloat(formatUnits(advance.advanceAmount, 6))
-  const outstanding = parseFloat(formatUnits(advance.totalRepayment, 6))
+  
+  // Recalculate interest and repayment using fixed APR (18% for Tier C) if applicable
+  let outstanding = parseFloat(formatUnits(advance.totalRepayment, 6))
+  if (aprRange.fixed) {
+    // Recalculate using fixed APR (e.g., 18% for Tier C)
+    const daysUntilDue = Math.max(0, Math.ceil((dueDateTimestamp - Math.floor(Date.now() / 1000)) / 86400))
+    const principal = advanceAmount
+    const interest = (principal * aprRange.fixed * daysUntilDue) / (100 * 365)
+    outstanding = principal + interest
+  }
   
   // Use tier-based APR (18% for Tier C, range for others)
   // This ensures consistency with the current tier and avoids showing outdated APR values
