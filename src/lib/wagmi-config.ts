@@ -48,9 +48,6 @@ export const wagmiConfig = createConfig({
           wait: 50,
           batchSize: 10,
         },
-        fetchOptions: {
-          timeout: 20000, // 20 second timeout
-        },
       }),
       // Secondary HTTP: dRPC endpoint (backup)
       http('https://mantle-sepolia.drpc.org', {
@@ -58,20 +55,15 @@ export const wagmiConfig = createConfig({
           wait: 50,
           batchSize: 10,
         },
-        fetchOptions: {
-          timeout: 20000,
-        },
       }),
       // Optional: WebSocket for event subscriptions (will fallback to HTTP if fails)
       // Only attempt WebSocket for real-time subscriptions
       webSocket('wss://mantle-sepolia.drpc.org', {
         reconnect: true,
-        timeout: 10000, // 10 second timeout for WebSocket connections
       }),
     ], {
       retryCount: 3, // Retry up to 3 times before failing
       rank: true, // Rank by response time
-      retryDelay: ({ count }) => Math.min(1000 * 2 ** count, 5000), // Exponential backoff
     }),
   },
 });
