@@ -55,6 +55,40 @@ async function main() {
     console.error("❌ Error checking contract:", error.message);
   }
 
+  // Check recent InvoiceSettled events to verify reputation updates should happen
+  console.log("\n=== Recent Invoice Settlements ===");
+  try {
+    const SettlementRouter = await hre.ethers.getContractFactory("SettlementRouter");
+    const settlementRouter = SettlementRouter.attach(SETTLEMENT_ROUTER);
+    const currentBlock = await hre.ethers.provider.getBlockNumber();
+    const fromBlock = Math.max(0, currentBlock - 50000);
+    
+    const invoiceSettledFilter = settlementRouter.filters.InvoiceSettled();
+    const settledEvents = await settlementRouter.queryFilter(invoiceSettledFilter, fromBlock, currentBlock);
+    
+    if (settledEvents.length === 0) {
+      console.log("⚠️  No InvoiceSettled events found in last 50,000 blocks");
+      console.log("   This means no invoices have been paid through SettlementRouter yet");
+    } else {
+      console.log(`✓ Found ${settledEvents.length} InvoiceSettled event(s)`);
+      console.log("   (Each settlement should trigger a ReputationUpdated event)");
+      
+      if (settledEvents.length > 0) {
+        console.log("\nMost recent settlements:");
+        const recentSettlements = settledEvents.slice(-5);
+        for (let i = 0; i < recentSettlements.length; i++) {
+          const event = recentSettlements[i];
+          const { invoiceId, seller, invoiceAmount, repaymentAmount } = event.args;
+          console.log(`  ${i + 1}. Invoice ${invoiceId.toString()}, Seller: ${seller}`);
+          console.log(`     Amount: ${hre.ethers.formatUnits(invoiceAmount, 6)} USDC`);
+          console.log(`     Block: ${event.blockNumber}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("❌ Error querying InvoiceSettled events:", error.message);
+  }
+
   // Check recent ReputationUpdated events
   console.log("\n=== Recent Reputation Updates ===");
   try {
@@ -73,9 +107,11 @@ async function main() {
       console.log("⚠️  No ReputationUpdated events found in last 50,000 blocks");
       console.log("   This could mean:");
       console.log("   - No invoices have been cleared yet");
-      console.log("   - updateReputation is not being called (check if SettlementRouter has role)");
-      console.log("   - Events are in older blocks (check if you cleared invoices before this");
-      console.log("   - The transaction might be reverting silently");
+      console.log("   - updateReputation is not being called (even though SettlementRouter has role)");
+      console.log("   - The transaction might be reverting before reputation update");
+      console.log("   - Events are in older blocks");
+      console.log("\n   ⚠️  IMPORTANT: If invoices were cleared but no ReputationUpdated events,");
+      console.log("       the reputation.updateReputation() call might be failing silently!");
     } else {
       console.log(`✓ Found ${events.length} ReputationUpdated event(s)`);
       console.log("\nRecent events:");
@@ -84,7 +120,8 @@ async function main() {
         const [seller, newScore, newTier, invoiceVolume] = event.args;
         console.log(`  ${i + 1}. Seller: ${seller}`);
         console.log(`     New Score: ${newScore.toString()}`);
-        console.log(`     New Tier: ${newTier} (0=C, 1=B, 2=A)`);
+        const tierLabel = newTier === 0 ? 'C' : newTier === 1 ? 'B' : 'A';
+        console.log(`     New Tier: ${newTier} (${tierLabel})`);
         console.log(`     Invoice Volume: ${hre.ethers.formatUnits(invoiceVolume, 6)} USDC`);
         console.log(`     Block: ${event.blockNumber}`);
         console.log("");

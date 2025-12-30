@@ -122,7 +122,9 @@ contract SettlementRouter is AccessControl {
         // 4. Mark invoice as cleared
         invoiceRegistry.markCleared(invoiceId, sellerAmount, feeAmount, repaymentAmount);
         
-        // 5. Update reputation
+        // 5. Update reputation (must succeed - atomic operation)
+        // If reputation update fails, entire transaction reverts (invoice remains uncleared)
+        // This ensures reputation is always updated when invoices are cleared
         reputation.updateReputation(invoice.seller, invoice.amount);
         
         emit InvoiceSettled(
