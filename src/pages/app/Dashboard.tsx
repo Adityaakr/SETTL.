@@ -84,7 +84,7 @@ export default function Dashboard() {
 
     // Advance eligible (issued invoices, up to 90% LTV for tier A, 65% for tier B, 35% for tier C)
     const ltvMap: Record<string, number> = { A: 0.90, B: 0.65, C: 0.35 }
-    const ltv = ltvMap[tierLabel] || 0.75
+    const ltv = ltvMap[effectiveTierLabel] || 0.75
     const advanceEligible = outstandingInvoices.reduce((sum, inv) => {
       return sum + parseFloat(formatUnits(inv.amount, 6)) * ltv
     }, 0)
@@ -95,7 +95,7 @@ export default function Dashboard() {
       clearedVolume,
       advanceEligible,
     }
-  }, [invoices, tierLabel])
+  }, [invoices, displayScore])
 
   // Get recent invoices (4 most recent)
   const recentInvoices = useMemo(() => {
@@ -120,36 +120,46 @@ export default function Dashboard() {
   // Default to 510 (Tier B) for now, then updates from there
   const displayScore = score > 0 ? score : 510
   
-  // Calculate progress to next tier
+  // Calculate tier from score (score 510 should be Tier B)
+  const displayTier = useMemo(() => {
+    if (displayScore < 500) return 'C'
+    if (displayScore < 850) return 'B'
+    return 'A'
+  }, [displayScore])
+  
+  // Use calculated tier for display (score 510 = Tier B)
+  const effectiveTierLabel = displayTier
+  
+  // Calculate progress to next tier (Tier A for Tier B users)
   const progressToNextTier = useMemo(() => {
     const tierThresholds = { C: 450, B: 500, A: 850 }
-    const currentThreshold = tierThresholds[tierLabel as keyof typeof tierThresholds] || 450
-    const nextTier = tierLabel === 'C' ? 'B' : tierLabel === 'B' ? 'A' : null
+    const currentThreshold = tierThresholds[effectiveTierLabel as keyof typeof tierThresholds] || 500
+    const nextTier = effectiveTierLabel === 'C' ? 'B' : effectiveTierLabel === 'B' ? 'A' : null
     const nextThreshold = nextTier ? tierThresholds[nextTier as keyof typeof tierThresholds] : 1000
     
     if (!nextTier) return 100
     
     const progress = ((displayScore - currentThreshold) / (nextThreshold - currentThreshold)) * 100
     return Math.max(0, Math.min(100, progress))
-  }, [displayScore, tierLabel])
+  }, [displayScore, effectiveTierLabel])
 
   const pointsToNextTier = useMemo(() => {
     const tierThresholds = { C: 450, B: 500, A: 850 }
-    const currentThreshold = tierThresholds[tierLabel as keyof typeof tierThresholds] || 450
-    const nextTier = tierLabel === 'C' ? 'B' : tierLabel === 'B' ? 'A' : null
+    const currentThreshold = tierThresholds[effectiveTierLabel as keyof typeof tierThresholds] || 500
+    const nextTier = effectiveTierLabel === 'C' ? 'B' : effectiveTierLabel === 'B' ? 'A' : null
     const nextThreshold = nextTier ? tierThresholds[nextTier as keyof typeof tierThresholds] : 1000
     
     if (!nextTier) return 0
     
     const needed = nextThreshold - displayScore
     return Math.max(0, needed)
-  }, [displayScore, tierLabel])
+  }, [displayScore, effectiveTierLabel])
 
   // Max LTV based on tier
   const maxLTV = useMemo(() => {
     const ltvMap: Record<string, number> = { A: 90, B: 65, C: 35 }
-    return ltvMap[tierLabel] || 65
-  }, [tierLabel])
+    return ltvMap[effectiveTierLabel] || 65
+  }, [effectiveTierLabel])
 
   const isLoading = isLoadingInvoices || isLoadingReputation
 
@@ -331,7 +341,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-2 gap-4 rounded-lg bg-secondary/50 p-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Current Tier</p>
-                    <p className="font-semibold">Tier {tierLabel}</p>
+                    <p className="font-semibold">Tier B</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Max LTV</p>
