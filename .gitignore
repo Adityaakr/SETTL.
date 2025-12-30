@@ -42,6 +42,9 @@ contracts.json
 .env.backup
 *.env.backup
 .env.*.backup
+.env.tmp
+*.env.tmp
+.env.*.tmp
 
 # Documentation (keep only README.md and INTRO.md)
 *.md
