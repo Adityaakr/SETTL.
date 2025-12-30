@@ -46,9 +46,22 @@ export default function Dashboard() {
   const { score, tierLabel, stats, isLoading: isLoadingReputation } = useReputation()
   const { balance: usdcBalance, isLoading: isLoadingBalance, error: balanceError } = useTokenBalance()
 
-  // Use score from hook (includes frontend tracking updates)
-  // Default to 510 (Tier B) for now, then updates from there
-  const displayScore = score > 0 ? score : 510
+  // Calculate score from cleared invoices: base 450 + (20 points per cleared invoice)
+  // This ensures the UI shows the correct score even if chain data is outdated
+  const clearedInvoicesForScore = useMemo(() => {
+    if (!invoices) return []
+    return invoices.filter(inv => inv.status === 3) // Status 3 = Cleared
+  }, [invoices])
+
+  const calculatedScoreFromInvoices = useMemo(() => {
+    const baseScore = 450 // Starting score (Tier C minimum)
+    const pointsPerInvoice = 20
+    return baseScore + (clearedInvoicesForScore.length * pointsPerInvoice)
+  }, [clearedInvoicesForScore.length])
+
+  // Use the higher of: hook score (from chain/frontend tracking) or calculated from invoices
+  // This ensures we show the most accurate score
+  const displayScore = Math.max(score > 0 ? score : 450, calculatedScoreFromInvoices)
   
   // Calculate tier from score (score 510 should be Tier B)
   const displayTier = useMemo(() => {

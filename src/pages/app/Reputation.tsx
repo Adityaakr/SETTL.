@@ -50,6 +50,12 @@ export default function Reputation() {
   const { score, tierLabel, stats, isLoading: isLoadingReputation } = useReputation()
   const { invoices, isLoading: isLoadingInvoices } = useSellerInvoicesWithData()
   
+  // Get cleared invoices (status === 3) to calculate stats
+  const clearedInvoices = useMemo(() => {
+    if (!invoices) return []
+    return invoices.filter(inv => inv.status === 3)
+  }, [invoices])
+
   // Calculate score from cleared invoices: base 450 + (20 points per cleared invoice)
   // This ensures the UI shows the correct score even if chain data is outdated
   const calculatedScoreFromInvoices = useMemo(() => {
@@ -77,12 +83,6 @@ export default function Reputation() {
     if (currentTier === 'B') return 850  // Next is Tier A (starts at 850)
     return 1000  // Max tier
   }, [currentTier])
-  
-  // Get cleared invoices (status === 3) to calculate stats
-  const clearedInvoices = useMemo(() => {
-    if (!invoices) return []
-    return invoices.filter(inv => inv.status === 3)
-  }, [invoices])
   
   // Calculate stats from cleared invoices
   const calculatedStats = useMemo(() => {
