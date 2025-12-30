@@ -26,7 +26,7 @@ import { useAdvance, useTotalDebt, useRequestAdvance } from "@/hooks/useAdvance"
 import { useVault } from "@/hooks/useVault"
 import { formatUnits } from "viem"
 import { toast } from "sonner"
-import { useReadContract } from "wagmi"
+import { useReadContract, usePublicClient } from "wagmi"
 import { InvoiceRegistryABI } from "@/lib/abis"
 import { contractAddresses } from "@/lib/contracts"
 
@@ -395,20 +395,24 @@ function EligibleInvoiceCard({
 }) {
   const { requestAdvance, isPending, isConfirming, error } = useRequestAdvance()
   const [isRequesting, setIsRequesting] = useState(false)
+  const publicClient = usePublicClient({ chainId: 5003 })
 
   const hasEnoughLiquidity = availableLiquidity >= invoice.maxAdvance
 
-  // Check invoice status in real-time before allowing advance request
-  const { data: invoiceData, refetch: refetchInvoiceStatus } = useReadContract({
+  // Check invoice status in real-time - use this to disable button if status changed
+  const { data: invoiceData } = useReadContract({
     address: contractAddresses.InvoiceRegistry as `0x${string}`,
     abi: InvoiceRegistryABI,
     functionName: 'getInvoice',
     args: [invoice.invoiceId],
     query: {
       enabled: !!invoice.invoiceId && !!contractAddresses.InvoiceRegistry,
-      refetchInterval: 10000, // Refetch every 10 seconds to get latest status
+      refetchInterval: 5000, // Refetch every 5 seconds to get latest status
     },
   })
+
+  // Check if invoice status is still "Issued" (0)
+  const isInvoiceIssued = invoiceData ? Number((invoiceData as any).status) === 0 : true
 
   const handleRequestAdvance = async () => {
     if (!hasEnoughLiquidity) {
@@ -422,9 +426,17 @@ function EligibleInvoiceCard({
     try {
       setIsRequesting(true)
       
-      // Refetch invoice status to ensure it's still "Issued" before making the request
-      const result = await refetchInvoiceStatus()
-      const currentInvoice = result.data as any
+      // Read invoice status directly from contract right before sending (most up-to-date)
+      if (!publicClient || !contractAddresses.InvoiceRegistry) {
+        throw new Error("Unable to verify invoice status. Please try again.")
+      }
+
+      const currentInvoice = await publicClient.readContract({
+        address: contractAddresses.InvoiceRegistry as `0x${string}`,
+        abi: InvoiceRegistryABI,
+        functionName: 'getInvoice',
+        args: [invoice.invoiceId],
+      }) as any
       
       if (!currentInvoice) {
         toast.error("Invoice not found", {
@@ -528,8 +540,14 @@ function EligibleInvoiceCard({
         <Button 
           variant="hero" 
           onClick={handleRequestAdvance}
-          disabled={isLoading || !hasEnoughLiquidity}
-          title={!hasEnoughLiquidity ? `Insufficient vault liquidity. Available: $${availableLiquidity.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : undefined}
+          disabled={isLoading || !hasEnoughLiquidity || !isInvoiceIssued}
+          title={
+            !hasEnoughLiquidity 
+              ? `Insufficient vault liquidity. Available: $${availableLiquidity.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+              : !isInvoiceIssued 
+              ? "Invoice status has changed. This invoice is no longer eligible for advance."
+              : undefined
+          }
         >
           {isLoading ? (
             <>
