@@ -311,10 +311,11 @@ export function useActivity() {
     const fetchPastEvents = async () => {
       try {
         const currentBlock = await publicClient.getBlockNumber();
-        // Fetch events from last 10,000 blocks (~24-48 hours on Mantle Sepolia)
-        const fromBlock = currentBlock - BigInt(10000);
+        // Fetch events from last 5,000 blocks (~12-24 hours on Mantle Sepolia) to avoid RPC limits
+        const fromBlock = Math.max(0n, currentBlock - BigInt(5000));
         
         const pastActivities: Activity[] = [];
+        const blockCache = new Map<string, number>(); // Cache block timestamps
 
         // Fetch InvoiceCreated events
         try {
@@ -338,7 +339,7 @@ export function useActivity() {
               description: `Issued to ${buyer?.slice(0, 6)}...${buyer?.slice(-4)}`,
               amount: parseFloat(formatUnits(amount || 0n, 6)),
               direction: null,
-              timestamp: Number(block.timestamp) * 1000,
+              timestamp,
               txHash: log.transactionHash,
               blockNumber: log.blockNumber,
             });
@@ -369,7 +370,7 @@ export function useActivity() {
               description: 'Payment submitted',
               amount: parseFloat(formatUnits(amount || 0n, 6)),
               direction: 'out',
-              timestamp: Number(block.timestamp) * 1000,
+              timestamp,
               txHash: log.transactionHash,
               blockNumber: log.blockNumber,
             });
@@ -392,7 +393,7 @@ export function useActivity() {
 
           for (const log of invoiceClearedEvents) {
             const { invoiceId, seller, sellerAmount } = log.args as any;
-            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+            const timestamp = await getBlockTimestamp(log.blockNumber);
             pastActivities.push({
               id: `invoice-cleared-${invoiceId}-${log.transactionHash}-${log.index}`,
               type: 'invoice_cleared',
@@ -400,7 +401,7 @@ export function useActivity() {
               description: 'Payment received and settled',
               amount: parseFloat(formatUnits(sellerAmount || 0n, 6)),
               direction: 'in',
-              timestamp: Number(block.timestamp) * 1000,
+              timestamp,
               txHash: log.transactionHash,
               blockNumber: log.blockNumber,
             });
@@ -423,7 +424,7 @@ export function useActivity() {
 
           for (const log of advanceRequestedEvents) {
             const { invoiceId, seller, advanceAmount } = log.args as any;
-            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+            const timestamp = await getBlockTimestamp(log.blockNumber);
             pastActivities.push({
               id: `advance-requested-${invoiceId}-${log.transactionHash}-${log.index}`,
               type: 'advance_received',
@@ -431,7 +432,7 @@ export function useActivity() {
               description: `On invoice INV-${invoiceId.toString().padStart(10, '0')}`,
               amount: parseFloat(formatUnits(advanceAmount || 0n, 6)),
               direction: 'in',
-              timestamp: Number(block.timestamp) * 1000,
+              timestamp,
               txHash: log.transactionHash,
               blockNumber: log.blockNumber,
             });
@@ -454,7 +455,7 @@ export function useActivity() {
 
           for (const log of depositEvents) {
             const { user, amount } = log.args as any;
-            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+            const timestamp = await getBlockTimestamp(log.blockNumber);
             pastActivities.push({
               id: `vault-deposit-${log.transactionHash}-${log.index}`,
               type: 'vault_deposit',
@@ -462,7 +463,7 @@ export function useActivity() {
               description: 'Added liquidity to funding pool',
               amount: parseFloat(formatUnits(amount || 0n, 6)),
               direction: 'out',
-              timestamp: Number(block.timestamp) * 1000,
+              timestamp,
               txHash: log.transactionHash,
               blockNumber: log.blockNumber,
             });
@@ -485,7 +486,7 @@ export function useActivity() {
 
           for (const log of withdrawEvents) {
             const { user, amount } = log.args as any;
-            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+            const timestamp = await getBlockTimestamp(log.blockNumber);
             pastActivities.push({
               id: `vault-withdraw-${log.transactionHash}-${log.index}`,
               type: 'vault_withdraw',
@@ -493,7 +494,7 @@ export function useActivity() {
               description: 'Withdrew liquidity from funding pool',
               amount: parseFloat(formatUnits(amount || 0n, 6)),
               direction: 'in',
-              timestamp: Number(block.timestamp) * 1000,
+              timestamp,
               txHash: log.transactionHash,
               blockNumber: log.blockNumber,
             });
@@ -517,7 +518,7 @@ export function useActivity() {
 
             for (const log of stakeEvents) {
               const { user, usmtAmount } = log.args as any;
-              const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+              const timestamp = await getBlockTimestamp(log.blockNumber);
               pastActivities.push({
                 id: `stake-${log.transactionHash}-${log.index}`,
                 type: 'stake',
@@ -525,7 +526,7 @@ export function useActivity() {
                 description: 'Staked USMT+ to earn yield',
                 amount: parseFloat(formatUnits(usmtAmount || 0n, 6)),
                 direction: 'out',
-                timestamp: Number(block.timestamp) * 1000,
+                timestamp,
                 txHash: log.transactionHash,
                 blockNumber: log.blockNumber,
               });
@@ -550,7 +551,7 @@ export function useActivity() {
 
             for (const log of unstakeEvents) {
               const { user, usmtAmount } = log.args as any;
-              const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+              const timestamp = await getBlockTimestamp(log.blockNumber);
               pastActivities.push({
                 id: `unstake-${log.transactionHash}-${log.index}`,
                 type: 'unstake',
@@ -558,7 +559,7 @@ export function useActivity() {
                 description: 'Unstaked USMT+ from staking',
                 amount: parseFloat(formatUnits(usmtAmount || 0n, 6)),
                 direction: 'in',
-                timestamp: Number(block.timestamp) * 1000,
+                timestamp,
                 txHash: log.transactionHash,
                 blockNumber: log.blockNumber,
               });
