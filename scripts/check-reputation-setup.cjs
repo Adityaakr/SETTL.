@@ -61,10 +61,19 @@ async function main() {
     const SettlementRouter = await hre.ethers.getContractFactory("SettlementRouter");
     const settlementRouter = SettlementRouter.attach(SETTLEMENT_ROUTER);
     const currentBlock = await hre.ethers.provider.getBlockNumber();
-    const fromBlock = Math.max(0, currentBlock - 50000);
     
-    const invoiceSettledFilter = settlementRouter.filters.InvoiceSettled();
-    const settledEvents = await settlementRouter.queryFilter(invoiceSettledFilter, fromBlock, currentBlock);
+    // Search in chunks of 10,000 blocks (RPC limit)
+    const CHUNK_SIZE = 10000;
+    const MAX_BLOCKS_TO_SEARCH = 50000; // Search last 50k blocks in chunks
+    const fromBlock = Math.max(0, currentBlock - MAX_BLOCKS_TO_SEARCH);
+    
+    let settledEvents = [];
+    for (let chunkStart = fromBlock; chunkStart < currentBlock; chunkStart += CHUNK_SIZE) {
+      const chunkEnd = Math.min(chunkStart + CHUNK_SIZE - 1, currentBlock);
+      const invoiceSettledFilter = settlementRouter.filters.InvoiceSettled();
+      const chunkEvents = await settlementRouter.queryFilter(invoiceSettledFilter, chunkStart, chunkEnd);
+      settledEvents = settledEvents.concat(chunkEvents);
+    }
     
     if (settledEvents.length === 0) {
       console.log("⚠️  No InvoiceSettled events found in last 50,000 blocks");
@@ -96,12 +105,19 @@ async function main() {
     const currentBlock = await hre.ethers.provider.getBlockNumber();
     console.log(`Current block: ${currentBlock}`);
     
-    // Look back more blocks (last 50000 blocks = ~7 days at 12s/block)
-    const fromBlock = Math.max(0, currentBlock - 50000);
-    console.log(`Searching from block ${fromBlock} to ${currentBlock}...`);
+    // Search in chunks of 10,000 blocks (RPC limit)
+    const CHUNK_SIZE = 10000;
+    const MAX_BLOCKS_TO_SEARCH = 50000; // Search last 50k blocks in chunks
+    const fromBlock = Math.max(0, currentBlock - MAX_BLOCKS_TO_SEARCH);
+    console.log(`Searching from block ${fromBlock} to ${currentBlock} (in chunks of ${CHUNK_SIZE})...`);
     
-    const filter = reputation.filters.ReputationUpdated();
-    const events = await reputation.queryFilter(filter, fromBlock, currentBlock);
+    let events = [];
+    for (let chunkStart = fromBlock; chunkStart < currentBlock; chunkStart += CHUNK_SIZE) {
+      const chunkEnd = Math.min(chunkStart + CHUNK_SIZE - 1, currentBlock);
+      const filter = reputation.filters.ReputationUpdated();
+      const chunkEvents = await reputation.queryFilter(filter, chunkStart, chunkEnd);
+      events = events.concat(chunkEvents);
+    }
     
     if (events.length === 0) {
       console.log("⚠️  No ReputationUpdated events found in last 50,000 blocks");
@@ -140,8 +156,9 @@ async function main() {
       const stats = await reputation.getStats(TEST_SELLER);
       
       console.log(`Score: ${score.toString()}`);
-      const tierLabel = tier === 0 ? 'C' : tier === 1 ? 'B' : tier === 2 ? 'A' : 'Unknown';
-      console.log(`Tier: ${tier} (${tierLabel})`);
+      // Fix tier display: 0 = C, 1 = B, 2 = A
+      const tierLabel = tier === 0n || tier === 0 ? 'C' : tier === 1n || tier === 1 ? 'B' : tier === 2n || tier === 2 ? 'A' : 'Unknown';
+      console.log(`Tier: ${tier.toString()} (${tierLabel})`);
       console.log(`Invoices Cleared: ${stats.invoicesCleared.toString()}`);
       console.log(`Total Volume: ${hre.ethers.formatUnits(stats.totalVolume, 6)} USDC`);
       console.log(`Last Updated: ${stats.lastUpdated.toString() === '0' ? 'Never' : new Date(Number(stats.lastUpdated) * 1000).toISOString()}`);
