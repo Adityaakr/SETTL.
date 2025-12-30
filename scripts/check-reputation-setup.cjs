@@ -4,6 +4,16 @@ const path = require("path");
 const fs = require("fs");
 
 async function main() {
+  // Get seller address from command line args if provided
+  // Hardhat passes args differently, so we need to check process.argv
+  let TEST_SELLER = null;
+  const args = process.argv.slice(2); // Remove 'node' and script path
+  // Filter out hardhat-specific args
+  const nonHardhatArgs = args.filter(arg => !arg.startsWith('--'));
+  if (nonHardhatArgs.length > 0) {
+    TEST_SELLER = nonHardhatArgs[0];
+  }
+
   console.log("Checking Reputation contract setup...\n");
 
   const SETTLEMENT_ROUTER = process.env.VITE_SETTLEMENT_ROUTER_ADDRESS;
@@ -82,7 +92,6 @@ async function main() {
   }
 
   // Test a seller address if provided
-  const TEST_SELLER = process.argv[2];
   if (TEST_SELLER) {
     console.log(`\n=== Testing Seller: ${TEST_SELLER} ===`);
     try {
