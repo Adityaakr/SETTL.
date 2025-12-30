@@ -25,29 +25,6 @@ export function useReputation(sellerAddress?: string) {
   const seller = sellerAddress || address;
   const queryClient = useQueryClient();
 
-  // Helper function to trigger immediate refetch of all reputation data
-  const triggerRefetch = () => {
-    // Refetch all reputation queries immediately
-    refetchScore();
-    refetchTier();
-    refetchStats();
-    
-    // Also invalidate queries to force fresh data from chain
-    if (seller) {
-      queryClient.invalidateQueries({
-        predicate: (query) => {
-          const queryKey = query.queryKey;
-          return (
-            Array.isArray(queryKey) &&
-            queryKey[0] === 'readContract' &&
-            queryKey[1]?.address?.toLowerCase() === contractAddresses.Reputation?.toLowerCase() &&
-            queryKey[1]?.functionName === 'getScore'
-          );
-        },
-      });
-    }
-  };
-
   const { data: score, isLoading: isLoadingScore, refetch: refetchScore } = useReadContract({
     address: contractAddresses.Reputation as `0x${string}`,
     abi: ReputationABI,
@@ -80,6 +57,28 @@ export function useReputation(sellerAddress?: string) {
       refetchInterval: 30000, // Background polling every 30s
     },
   });
+
+  // Helper function to trigger immediate refetch of all reputation data
+  const triggerRefetch = () => {
+    // Refetch all reputation queries immediately
+    refetchScore();
+    refetchTier();
+    refetchStats();
+    
+    // Also invalidate queries to force fresh data from chain
+    if (seller) {
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const queryKey = query.queryKey;
+          return (
+            Array.isArray(queryKey) &&
+            queryKey[0] === 'readContract' &&
+            queryKey[1]?.address?.toLowerCase() === contractAddresses.Reputation?.toLowerCase()
+          );
+        },
+      });
+    }
+  };
 
   // Primary: Watch for ReputationUpdated events - most direct signal
   useWatchContractEvent({
