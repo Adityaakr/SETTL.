@@ -40,9 +40,35 @@ const STATUS_MAP: Record<InvoiceStatus, string> = {
 
 export default function Financing() {
   const { invoices, isLoading: isLoadingInvoices } = useSellerInvoicesWithData()
-  const { tierLabel, isLoading: isLoadingReputation } = useReputation()
+  const { score, tierLabel, isLoading: isLoadingReputation } = useReputation()
   const { totalDebt, isLoading: isLoadingDebt } = useTotalDebt()
   const { totalLiquidity, totalBorrowed, isLoading: isLoadingVault } = useVault()
+
+  // Calculate score from cleared invoices: base 450 + (20 points per cleared invoice)
+  // This ensures the UI shows the correct score even if chain data is outdated
+  const clearedInvoicesForScore = useMemo(() => {
+    if (!invoices) return []
+    return invoices.filter(inv => inv.status === 3) // Status 3 = Cleared
+  }, [invoices])
+
+  const calculatedScoreFromInvoices = useMemo(() => {
+    const baseScore = 450 // Starting score (Tier C minimum)
+    const pointsPerInvoice = 20
+    return baseScore + (clearedInvoicesForScore.length * pointsPerInvoice)
+  }, [clearedInvoicesForScore.length])
+
+  // Use the higher of: hook score (from chain/frontend tracking) or calculated from invoices
+  // This ensures we show the most accurate score (same logic as Dashboard)
+  const displayScore = useMemo(() => {
+    return Math.max(score > 0 ? score : 450, calculatedScoreFromInvoices)
+  }, [score, calculatedScoreFromInvoices])
+  
+  // Calculate tier from score (score 510 should be Tier B) - same logic as Dashboard
+  const effectiveTierLabel = useMemo(() => {
+    if (displayScore < 500) return 'C'
+    if (displayScore < 850) return 'B'
+    return 'A'
+  }, [displayScore])
 
   // Calculate max LTV and APR based on tier
   const ltvMap: Record<string, number> = { A: 0.90, B: 0.65, C: 0.35 }
@@ -53,8 +79,9 @@ export default function Financing() {
     C: { min: 15.25, max: 18, fixed: 18 }, // Fixed 18% APR for Tier C
   }
 
-  const maxLTV = ltvMap[tierLabel] || 0.75
-  const aprRange = aprMap[tierLabel] || { min: 8, max: 12 }
+  // Use effectiveTierLabel (calculated from score) instead of tierLabel from hook
+  const maxLTV = ltvMap[effectiveTierLabel] || 0.75
+  const aprRange = aprMap[effectiveTierLabel] || { min: 8, max: 12 }
   // For Tier C, use fixed 18% APR
   const fixedApr = aprRange.fixed
 
@@ -77,11 +104,11 @@ export default function Financing() {
           amount,
           maxAdvance,
           apr: aprDisplay,
-          tier: tierLabel,
+          tier: effectiveTierLabel,
           dueDate: new Date(Number(invoice.dueDate) * 1000),
         }
       })
-  }, [invoices, maxLTV, aprRange, tierLabel, fixedApr])
+  }, [invoices, maxLTV, aprRange, effectiveTierLabel, fixedApr])
 
   // All invoices for display (excluding status 1 which are shown in Active Positions)
   const allInvoices = useMemo(() => {
@@ -102,12 +129,12 @@ export default function Financing() {
           amount,
           maxAdvance,
           apr: aprDisplay,
-          tier: tierLabel,
+          tier: effectiveTierLabel,
           dueDate: new Date(Number(invoice.dueDate) * 1000),
           status: invoice.status,
         }
       })
-  }, [invoices, maxLTV, aprRange, tierLabel, fixedApr])
+  }, [invoices, maxLTV, aprRange, effectiveTierLabel, fixedApr])
 
   // Active positions (status === 1, "Financed")
   const activePositions = useMemo(() => {
@@ -187,7 +214,7 @@ export default function Financing() {
         />
         <StatCard
           title="Current Tier"
-          value={isLoadingReputation ? "..." : tierLabel}
+          value={isLoadingReputation ? "..." : `Tier ${effectiveTierLabel}`}
           subtitle={isLoadingReputation ? "Loading..." : `${(maxLTV * 100).toFixed(0)}% max LTV`}
           icon={TrendingUp}
         />
