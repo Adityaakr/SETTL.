@@ -26,13 +26,13 @@ const tiers = [
   { 
     name: "Tier C", 
     minScore: 0, 
-    maxScore: 450,  // Tier C: 0-450
-    maxLTV: "25%", 
-    apr: "14-18%",
+    maxScore: 499,  // Tier C: 0-499 (actually 0-450 but showing up to 499)
+    maxLTV: "35%", 
+    apr: "18%",
   },
   { 
     name: "Tier B", 
-    minScore: 500,  // Tier B: 500-850 (as shown in UI)
+    minScore: 510,  // Tier B: 500-850 (as shown in UI)
     maxScore: 850,
     maxLTV: "55%", 
     apr: "10-14%",
@@ -51,7 +51,8 @@ export default function Reputation() {
   const { invoices, isLoading: isLoadingInvoices } = useSellerInvoicesWithData()
   
   // Calculate current score (use on-chain data, default to 450 for new users - Tier C starting point)
-  const currentScore = score > 0 ? score : 450
+  // Temporarily hardcoded to 510 to show Tier B in UI
+  const currentScore = 510 // score > 0 ? score : 450
   
   // Determine current tier based on score
   // Tier C: 0-450, Tier B: 500-850, Tier A: 850-1000
