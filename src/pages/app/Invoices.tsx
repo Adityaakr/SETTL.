@@ -492,7 +492,7 @@ function InvoicePDFDownloadButton({ invoice }: { invoice: { invoiceId: bigint; b
             status: invoice.status,
             statusNumber,
             statusLabel: invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1),
-            invoiceNumber: invoice.id.replace('INV-', 'INV-').padStart(14, '0'), // Ensure 10 digits after INV-
+            invoiceNumber: invoice.id, // Already formatted as INV-000000
             description: `Payment for ${invoice.id}`,
             tokenId: tokenId && BigInt(tokenId) > 0n ? tokenId.toString() : undefined,
             nftAddress,
