@@ -49,7 +49,7 @@ export default function PayInvoice() {
   const { tokenId, nftAddress, isLoading: isLoadingNFT } = useInvoiceNFT(invoiceId ? BigInt(invoiceId) : undefined)
   const { sendTransaction } = useSendTransaction()
   const { wallets } = useWallets()
-  const { login, ready, authenticated } = usePrivy()
+  const { login, logout, ready, authenticated } = usePrivy()
   const publicClient = usePublicClient({ chainId: 5003 })
   
   const embeddedWallet = wallets.find(w => {
@@ -341,6 +341,20 @@ export default function PayInvoice() {
   }
 
   const amountDisplay = parseFloat(formatUnits(invoice.amount, 6))
+  
+  // Debug: Log wallet comparison
+  useEffect(() => {
+    if (address && invoice) {
+      console.log('🔍 Wallet comparison:', {
+        connectedAddress: address,
+        invoiceBuyer: invoice.buyer,
+        connectedLower: address.toLowerCase(),
+        buyerLower: invoice.buyer.toLowerCase(),
+        isMatch: address.toLowerCase() === invoice.buyer.toLowerCase(),
+      })
+    }
+  }, [address, invoice])
+  
   const isBuyer = address?.toLowerCase() === invoice.buyer.toLowerCase()
   const isPastDue = Number(invoice.dueDate) < Math.floor(Date.now() / 1000)
   const dueDate = new Date(Number(invoice.dueDate) * 1000)
@@ -398,6 +412,26 @@ export default function PayInvoice() {
               Back
             </Button>
             <div className="flex items-center gap-1">
+              {authenticated && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={async () => {
+                    try {
+                      await logout()
+                      navigate('/')
+                    } catch (error: any) {
+                      console.error('Logout error:', error)
+                      toast.error('Failed to logout', {
+                        description: error?.message || 'Please try again'
+                      })
+                    }
+                  }}
+                  className="h-8 text-xs"
+                >
+                  Logout
+                </Button>
+              )}
               <Button variant="ghost" size="sm" onClick={copyPaymentLink} className="h-8 w-8 p-0">
                 <Copy className="h-3.5 w-3.5" />
               </Button>
