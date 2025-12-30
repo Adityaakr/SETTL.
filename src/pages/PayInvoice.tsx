@@ -381,14 +381,14 @@ export default function PayInvoice() {
                 <Copy className="h-3.5 w-3.5" />
               </Button>
               <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                <a
-                  href={`https://explorer.testnet.mantle.xyz/address/${contractAddresses.InvoiceRegistry}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                  <a
+                    href={`https://explorer.testnet.mantle.xyz/address/${contractAddresses.InvoiceRegistry}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                   <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              </Button>
+                  </a>
+                </Button>
             </div>
           </div>
 
@@ -419,7 +419,7 @@ export default function PayInvoice() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">To</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Bill to</p>
                   <p className="text-sm font-medium">{buyerName}</p>
                 </div>
                 <div>
@@ -444,7 +444,7 @@ export default function PayInvoice() {
                 <tbody>
                   <tr>
                     <td className="px-3 py-2.5 text-sm font-medium">Invoice Amount</td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground">Payment for invoice INV-{invoice.invoiceId.toString().padStart(6, '0')}</td>
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground">Payment for INV-{invoice.invoiceId.toString().padStart(6, '0')}</td>
                     <td className="px-3 py-2.5 text-sm text-center">1</td>
                     <td className="px-3 py-2.5 text-sm text-right">${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-3 py-2.5 text-sm font-semibold text-right">${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -549,47 +549,47 @@ export default function PayInvoice() {
                             <div className="flex items-center gap-2">
                               <AlertCircle className="h-3.5 w-3.5 text-warning" />
                               <span className="text-xs font-medium">Approve USDC to continue</span>
-                            </div>
-                          </div>
-                          <Button
-                            onClick={handleApprove}
-                            disabled={isApproving || isApprovalConfirming}
-                            className="w-full"
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleApprove}
+                      disabled={isApproving || isApprovalConfirming}
+                      className="w-full"
                             size="default"
-                            variant="hero"
-                          >
-                            {isApproving || isApprovalConfirming ? (
-                              <>
+                      variant="hero"
+                    >
+                      {isApproving || isApprovalConfirming ? (
+                        <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 {isApproving ? "Waiting..." : "Confirming..."}
-                              </>
-                            ) : (
+                        </>
+                      ) : (
                               `Approve $${amountDisplay.toLocaleString()} USDC`
-                            )}
-                          </Button>
-                        </div>
                       )}
+                    </Button>
+                  </div>
+                )}
 
-                      {(step === "pay" || !needsApproval) && (
-                        <Button
-                          onClick={handlePay}
-                          disabled={isPaying || isPaymentConfirming || needsApproval}
-                          className="w-full"
+                {(step === "pay" || !needsApproval) && (
+                    <Button
+                      onClick={handlePay}
+                      disabled={isPaying || isPaymentConfirming || needsApproval}
+                      className="w-full"
                           size="default"
-                          variant="hero"
-                        >
-                          {isPaying || isPaymentConfirming ? (
-                            <>
+                      variant="hero"
+                    >
+                      {isPaying || isPaymentConfirming ? (
+                        <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               {isPaying ? "Waiting..." : "Confirming..."}
-                            </>
-                          ) : (
-                            <>
+                        </>
+                      ) : (
+                        <>
                               <DollarSign className="mr-2 h-4 w-4" />
                               Pay ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </>
-                          )}
-                        </Button>
+                        </>
+                      )}
+                    </Button>
                       )}
 
                       {step === "complete" && (
@@ -603,8 +603,8 @@ export default function PayInvoice() {
                       )}
                     </>
                   )}
-                </div>
-              )}
+                  </div>
+                )}
 
               {paymentMethod === "card" && (
                 <div className="space-y-3">
@@ -665,16 +665,16 @@ export default function PayInvoice() {
                   >
                     Pay ${amountDisplay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Button>
-                </div>
-              )}
+              </div>
+            )}
 
               {paymentMethod === "bank" && (
                 <div className="space-y-3">
                   <div className="rounded-lg border border-muted bg-muted/30 p-2">
                     <p className="text-xs text-muted-foreground">
                       Bank transfers are demo only. Please use Wallet to complete payment.
-                    </p>
-                  </div>
+                </p>
+              </div>
                   <Button
                     onClick={() => {
                       toast.info("Bank transfers are demo only. Please use Wallet to pay.")
@@ -689,10 +689,10 @@ export default function PayInvoice() {
                   </Button>
                 </div>
               )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {invoice.status >= 2 && (
+            {invoice.status >= 2 && (
             <div className="rounded-lg border border-success/20 bg-success/5 p-4 text-center">
               <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
               <h3 className="mt-2 text-base font-semibold">
@@ -703,8 +703,8 @@ export default function PayInvoice() {
                   ? "This invoice has been fully settled on-chain."
                   : "Payment has been received and settlement is in progress."}
               </p>
-            </div>
-          )}
+              </div>
+            )}
 
           {/* Footer */}
           <div className="text-center text-xs text-muted-foreground mt-4">
