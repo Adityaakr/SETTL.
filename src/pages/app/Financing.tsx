@@ -147,9 +147,11 @@ export default function Financing() {
           subtitle={
             isLoading 
               ? "Loading..." 
-              : stats.totalDebt > 0 && stats.activeCount === 0
-              ? "Awaiting settlement"
-              : `${stats.activeCount} active position${stats.activeCount !== 1 ? 's' : ''}`
+              : stats.totalDebt === 0
+              ? "No outstanding debt"
+              : stats.activeCount > 0
+              ? `${stats.activeCount} active position${stats.activeCount !== 1 ? 's' : ''}`
+              : "Awaiting settlement"
           }
           icon={Clock}
           variant="warning"
