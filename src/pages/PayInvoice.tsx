@@ -52,11 +52,11 @@ export default function PayInvoice() {
   const { login, logout, ready, authenticated } = usePrivy()
   const publicClient = usePublicClient({ chainId: 5003 })
   
-  const embeddedWallet = wallets.find(w => {
-    const ct = w.connectorType?.toLowerCase() || '';
-    const wct = w.walletClientType?.toLowerCase() || '';
-    return ct === 'embedded' || wct === 'privy' || ct.includes('privy') || ct.includes('embedded');
-  }) || wallets[0];
+  // Find the wallet that matches the currently connected address
+  // This ensures we use the wallet the user actually connected (could be MetaMask, Privy, etc.)
+  const connectedWallet = address 
+    ? wallets.find(w => w.address.toLowerCase() === address.toLowerCase()) || wallets[0]
+    : wallets[0]
   
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("privy")
   const [cardNumber, setCardNumber] = useState("")
@@ -128,8 +128,21 @@ export default function PayInvoice() {
       return
     }
 
-    if (!embeddedWallet) {
+    if (!address) {
+      toast.error("Please connect your wallet first")
+      return
+    }
+
+    if (!connectedWallet) {
       toast.error("No wallet available")
+      return
+    }
+
+    // Ensure the connected wallet address matches the active address
+    if (connectedWallet.address.toLowerCase() !== address.toLowerCase()) {
+      toast.error("Wallet address mismatch", {
+        description: "Please ensure you're using the connected wallet"
+      })
       return
     }
 
@@ -152,7 +165,7 @@ export default function PayInvoice() {
           chainId: 5003,
         },
         {
-          address: embeddedWallet.address,
+          address: connectedWallet.address,
           uiOptions: {
             showWalletUIs: false,
           },
@@ -278,7 +291,7 @@ export default function PayInvoice() {
           chainId: 5003,
         },
         {
-          address: embeddedWallet.address,
+          address: connectedWallet.address,
           uiOptions: {
             showWalletUIs: false,
           },
