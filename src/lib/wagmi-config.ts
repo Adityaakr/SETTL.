@@ -32,26 +32,43 @@ export const mantleTestnet = {
 } as const;
 
 // Create Wagmi config using Privy's createConfig
-// Use WebSocket for frequent reads/subscriptions (real-time data)
-// Use HTTP for writes/transactions (on-chain operations)
+// Prioritize HTTP for reliability, with WebSocket as optional for subscriptions
 // fallback provides automatic failover between endpoints
 export const wagmiConfig = createConfig({
   chains: [mantleTestnet],
   transports: {
     [mantleTestnet.id]: fallback([
-      // Primary: WebSocket for reads/subscriptions (frequent data fetching)
-      // WebSocket is more efficient for real-time data and event subscriptions
-      webSocket('wss://mantle-sepolia.drpc.org'),
-      // HTTP for writes/transactions (on-chain operations)
+      // Primary: HTTP for reads (more reliable than WebSocket)
       // Primary: Mantle official RPC
       http('https://rpc.sepolia.mantle.xyz', {
-        batch: true, // Enable batch requests for better performance
+        batch: {
+          multicall: true, // Enable multicall batching
+        },
+        fetchOptions: {
+          timeout: 30000, // 30 second timeout
+        },
       }),
       // Fallback: dRPC HTTP endpoint
       http('https://mantle-sepolia.drpc.org', {
-        batch: true,
+        batch: {
+          multicall: true,
+        },
+        fetchOptions: {
+          timeout: 30000,
+        },
       }),
-    ]),
+      // Optional: WebSocket for event subscriptions (may fail, HTTP will be used instead)
+      webSocket('wss://mantle-sepolia.drpc.org', {
+        reconnect: true, // Auto-reconnect on disconnect
+      }),
+    ], {
+      retryCount: 3, // Retry failed requests up to 3 times
+      rank: ({ latency, success }) => {
+        // Rank by success rate first, then latency
+        if (success) return latency;
+        return Number.MAX_SAFE_INTEGER;
+      },
+    }),
   },
 });
 
