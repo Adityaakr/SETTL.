@@ -3,7 +3,7 @@ import { useWatchContractEvent, usePublicClient } from 'wagmi';
 import { usePrivyAccount } from './usePrivyAccount';
 import { contractAddresses } from '@/lib/contracts';
 import { InvoiceRegistryABI, AdvanceEngineABI, VaultABI, SettlementRouterABI, StakingABI } from '@/lib/abis';
-import { formatUnits, formatEther } from 'viem';
+import { formatUnits, formatEther, parseAbiItem } from 'viem';
 
 export interface Activity {
   id: string;
@@ -36,17 +36,18 @@ export function useActivity() {
     });
   }, []);
 
-  // Watch InvoiceCreated events
+  // Watch InvoiceCreated events - real-time
   useWatchContractEvent({
     address: contractAddresses.InvoiceRegistry as `0x${string}`,
     abi: InvoiceRegistryABI,
     eventName: 'InvoiceCreated',
-    onLogs(logs) {
-      logs.forEach((log) => {
+    onLogs: async (logs) => {
+      for (const log of logs) {
         const { invoiceId, seller, buyer, amount } = log.args as any;
         if (seller?.toLowerCase() === address?.toLowerCase() || buyer?.toLowerCase() === address?.toLowerCase()) {
+          const block = await publicClient?.getBlock({ blockNumber: log.blockNumber });
           addActivity({
-            id: `invoice-created-${invoiceId}-${log.transactionHash}-${log.logIndex}`,
+            id: `invoice-created-${invoiceId}-${log.transactionHash}-${log.index}`,
             type: 'invoice_created',
             title: `Invoice INV-${invoiceId.toString().padStart(10, '0')} Created`,
             description: seller?.toLowerCase() === address?.toLowerCase() 
@@ -54,12 +55,12 @@ export function useActivity() {
               : `Received from ${seller?.slice(0, 6)}...${seller?.slice(-4)}`,
             amount: parseFloat(formatUnits(amount || 0n, 6)),
             direction: null,
-            timestamp: Date.now(),
+            timestamp: block ? Number(block.timestamp) * 1000 : Date.now(),
             txHash: log.transactionHash,
             blockNumber: log.blockNumber || 0n,
           });
         }
-      });
+      }
     },
   });
 
@@ -319,16 +320,7 @@ export function useActivity() {
         try {
           const invoiceCreatedEvents = await publicClient.getLogs({
             address: contractAddresses.InvoiceRegistry as `0x${string}`,
-            event: {
-              type: 'event',
-              name: 'InvoiceCreated',
-              inputs: [
-                { type: 'uint256', indexed: true, name: 'invoiceId' },
-                { type: 'address', indexed: true, name: 'seller' },
-                { type: 'address', indexed: true, name: 'buyer' },
-                { type: 'uint256', indexed: false, name: 'amount' },
-              ],
-            },
+            event: parseAbiItem('event InvoiceCreated(uint256 indexed invoiceId, address indexed seller, address indexed buyer, uint256 amount)'),
             args: {
               seller: address as `0x${string}`,
             },
@@ -359,15 +351,7 @@ export function useActivity() {
         try {
           const invoicePaidEvents = await publicClient.getLogs({
             address: contractAddresses.InvoiceRegistry as `0x${string}`,
-            event: {
-              type: 'event',
-              name: 'InvoicePaid',
-              inputs: [
-                { type: 'uint256', indexed: true, name: 'invoiceId' },
-                { type: 'address', indexed: true, name: 'buyer' },
-                { type: 'uint256', indexed: false, name: 'amount' },
-              ],
-            },
+            event: parseAbiItem('event InvoicePaid(uint256 indexed invoiceId, address indexed buyer, uint256 amount)'),
             args: {
               buyer: address as `0x${string}`,
             },
@@ -398,17 +382,7 @@ export function useActivity() {
         try {
           const invoiceClearedEvents = await publicClient.getLogs({
             address: contractAddresses.InvoiceRegistry as `0x${string}`,
-            event: {
-              type: 'event',
-              name: 'InvoiceCleared',
-              inputs: [
-                { type: 'uint256', indexed: true, name: 'invoiceId' },
-                { type: 'address', indexed: true, name: 'seller' },
-                { type: 'uint256', indexed: false, name: 'sellerAmount' },
-                { type: 'uint256', indexed: false, name: 'feeAmount' },
-                { type: 'uint256', indexed: false, name: 'repaymentAmount' },
-              ],
-            },
+            event: parseAbiItem('event InvoiceCleared(uint256 indexed invoiceId, address indexed seller, uint256 sellerAmount, uint256 feeAmount, uint256 repaymentAmount)'),
             args: {
               seller: address as `0x${string}`,
             },
@@ -439,17 +413,7 @@ export function useActivity() {
         try {
           const advanceRequestedEvents = await publicClient.getLogs({
             address: contractAddresses.AdvanceEngine as `0x${string}`,
-            event: {
-              type: 'event',
-              name: 'AdvanceRequested',
-              inputs: [
-                { type: 'uint256', indexed: true, name: 'invoiceId' },
-                { type: 'address', indexed: true, name: 'seller' },
-                { type: 'uint256', indexed: false, name: 'advanceAmount' },
-                { type: 'uint256', indexed: false, name: 'ltvBps' },
-                { type: 'uint256', indexed: false, name: 'aprBps' },
-              ],
-            },
+            event: parseAbiItem('event AdvanceRequested(uint256 indexed invoiceId, address indexed seller, uint256 advanceAmount, uint256 ltvBps, uint256 aprBps)'),
             args: {
               seller: address as `0x${string}`,
             },
@@ -480,15 +444,7 @@ export function useActivity() {
         try {
           const depositEvents = await publicClient.getLogs({
             address: contractAddresses.Vault as `0x${string}`,
-            event: {
-              type: 'event',
-              name: 'Deposit',
-              inputs: [
-                { type: 'address', indexed: true, name: 'user' },
-                { type: 'uint256', indexed: false, name: 'amount' },
-                { type: 'uint256', indexed: false, name: 'shares' },
-              ],
-            },
+            event: parseAbiItem('event Deposit(address indexed user, uint256 amount, uint256 shares)'),
             args: {
               user: address as `0x${string}`,
             },
@@ -519,15 +475,7 @@ export function useActivity() {
         try {
           const withdrawEvents = await publicClient.getLogs({
             address: contractAddresses.Vault as `0x${string}`,
-            event: {
-              type: 'event',
-              name: 'Withdraw',
-              inputs: [
-                { type: 'address', indexed: true, name: 'user' },
-                { type: 'uint256', indexed: false, name: 'amount' },
-                { type: 'uint256', indexed: false, name: 'shares' },
-              ],
-            },
+            event: parseAbiItem('event Withdraw(address indexed user, uint256 amount, uint256 shares)'),
             args: {
               user: address as `0x${string}`,
             },
@@ -559,15 +507,7 @@ export function useActivity() {
           try {
             const stakeEvents = await publicClient.getLogs({
               address: contractAddresses.Staking as `0x${string}`,
-              event: {
-                type: 'event',
-                name: 'Stake',
-                inputs: [
-                  { type: 'address', indexed: true, name: 'user' },
-                  { type: 'uint256', indexed: false, name: 'usmtAmount' },
-                  { type: 'uint256', indexed: false, name: 'susmtAmount' },
-                ],
-              },
+              event: parseAbiItem('event Stake(address indexed user, uint256 usmtAmount, uint256 susmtAmount)'),
               args: {
                 user: address as `0x${string}`,
               },
@@ -600,15 +540,7 @@ export function useActivity() {
           try {
             const unstakeEvents = await publicClient.getLogs({
               address: contractAddresses.Staking as `0x${string}`,
-              event: {
-                type: 'event',
-                name: 'Unstake',
-                inputs: [
-                  { type: 'address', indexed: true, name: 'user' },
-                  { type: 'uint256', indexed: false, name: 'usmtAmount' },
-                  { type: 'uint256', indexed: false, name: 'susmtAmount' },
-                ],
-              },
+              event: parseAbiItem('event Unstake(address indexed user, uint256 usmtAmount, uint256 susmtAmount)'),
               args: {
                 user: address as `0x${string}`,
               },
