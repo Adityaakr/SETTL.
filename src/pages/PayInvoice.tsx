@@ -188,6 +188,16 @@ export default function PayInvoice() {
       return
     }
 
+    // Check allowance one more time before attempting payment
+    if (allowance !== undefined && allowance < invoice.amount) {
+      toast.error("Insufficient USDC allowance", {
+        description: "Please approve USDC spending first. The approval may still be processing.",
+      })
+      // Refetch allowance in case it just updated
+      refetchAllowance()
+      return
+    }
+
     setIsPaying(true)
     try {
       const data = encodeFunctionData({
@@ -228,7 +238,7 @@ export default function PayInvoice() {
         errorDescription = "This invoice has already been paid and cleared."
       } else if (error.message?.includes("Execution reverted")) {
         errorMessage = "Transaction failed"
-        errorDescription = "The transaction was rejected. Please ensure you're the buyer and the invoice is not already paid."
+        errorDescription = "The transaction was rejected. Common causes: insufficient USDC allowance (try approving again), insufficient balance, or invoice already paid. Please check and try again."
       }
       
       toast.error(errorMessage, {
