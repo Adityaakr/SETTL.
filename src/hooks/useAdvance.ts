@@ -167,6 +167,19 @@ export function useRequestAdvance() {
     } catch (err: any) {
       setError(err);
       setIsPending(false);
+      
+      // Enhanced error handling for "Invalid status" errors
+      const errorMessage = err?.message || err?.shortMessage || String(err);
+      const errorMsgLower = errorMessage.toLowerCase();
+      
+      if (errorMsgLower.includes('invalid status') || errorMsgLower.includes('execution reverted: invalid status')) {
+        const enhancedError = new Error(
+          'This invoice is no longer eligible for advance. It may have been paid or financed already. Please refresh the page to see the latest status.'
+        );
+        enhancedError.cause = err;
+        throw enhancedError;
+      }
+      
       throw err;
     }
   };
