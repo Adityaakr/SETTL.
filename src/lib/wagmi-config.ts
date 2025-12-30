@@ -41,21 +41,11 @@ export const wagmiConfig = createConfig({
       // Primary: HTTP for reads (more reliable than WebSocket)
       // Primary: Mantle official RPC
       http('https://rpc.sepolia.mantle.xyz', {
-        batch: {
-          multicall: true, // Enable multicall batching
-        },
-        fetchOptions: {
-          timeout: 30000, // 30 second timeout
-        },
+        batch: true, // Enable batch requests for better performance
       }),
       // Fallback: dRPC HTTP endpoint
       http('https://mantle-sepolia.drpc.org', {
-        batch: {
-          multicall: true,
-        },
-        fetchOptions: {
-          timeout: 30000,
-        },
+        batch: true,
       }),
       // Optional: WebSocket for event subscriptions (may fail, HTTP will be used instead)
       webSocket('wss://mantle-sepolia.drpc.org', {
@@ -63,11 +53,6 @@ export const wagmiConfig = createConfig({
       }),
     ], {
       retryCount: 3, // Retry failed requests up to 3 times
-      rank: ({ latency, success }) => {
-        // Rank by success rate first, then latency
-        if (success) return latency;
-        return Number.MAX_SAFE_INTEGER;
-      },
     }),
   },
 });
