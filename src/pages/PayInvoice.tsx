@@ -409,7 +409,10 @@ export default function PayInvoice() {
       )
 
       setPayHash(result.hash)
-      toast.success("Payment transaction submitted!")
+      toast.info("Transaction submitted", {
+        description: "Please confirm the transaction in your wallet, then wait for on-chain confirmation...",
+        duration: 5000,
+      })
     } catch (error: any) {
       console.error("Payment error:", error)
       
