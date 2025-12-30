@@ -33,27 +33,23 @@ export const mantleTestnet = {
 
 // Create Wagmi config using Privy's createConfig
 // Strategy:
-// - WebSocket prioritized for real-time event subscriptions (useWatchContractEvent)
-//   - Wagmi automatically uses WebSocket for event subscriptions when available
-//   - Falls back to HTTP polling if WebSocket fails
-// - HTTP for reads/writes with automatic fallback
-// - Multiple endpoints for redundancy and failover
+// - HTTP prioritized for reliability (WebSocket can be unstable)
+// - Multiple HTTP endpoints with automatic failover
+// - WebSocket as optional for event subscriptions (will fall back to HTTP polling)
+// - Robust error handling and retries
 export const wagmiConfig = createConfig({
   chains: [mantleTestnet],
   transports: {
     [mantleTestnet.id]: fallback([
-      // Primary: WebSocket for real-time event subscriptions
-      // This is critical for useWatchContractEvent hooks to work reliably
-      // Wagmi will automatically use WebSocket for event subscriptions
-      webSocket('wss://mantle-sepolia.drpc.org', {
-        reconnect: true, // Auto-reconnect on disconnect
-      }),
-      // Fallback: HTTP for reads and writes (more reliable for transactions)
-      // Primary HTTP: Mantle official RPC (most reliable)
+      // Primary: HTTP endpoints (most reliable)
+      // Primary HTTP: Mantle official RPC
       http('https://rpc.sepolia.mantle.xyz', {
         batch: {
-          wait: 50, // Wait 50ms to batch multiple requests
-          batchSize: 10, // Batch up to 10 requests
+          wait: 50,
+          batchSize: 10,
+        },
+        fetchOptions: {
+          timeout: 20000, // 20 second timeout
         },
       }),
       // Secondary HTTP: dRPC endpoint (backup)
@@ -62,10 +58,20 @@ export const wagmiConfig = createConfig({
           wait: 50,
           batchSize: 10,
         },
+        fetchOptions: {
+          timeout: 20000,
+        },
+      }),
+      // Optional: WebSocket for event subscriptions (will fallback to HTTP if fails)
+      // Only attempt WebSocket for real-time subscriptions
+      webSocket('wss://mantle-sepolia.drpc.org', {
+        reconnect: true,
+        timeout: 10000, // 10 second timeout for WebSocket connections
       }),
     ], {
-      retryCount: 2, // Retry failed requests up to 2 times (faster failover)
-      rank: true, // Rank transports by response time and reliability
+      retryCount: 3, // Retry up to 3 times before failing
+      rank: true, // Rank by response time
+      retryDelay: ({ count }) => Math.min(1000 * 2 ** count, 5000), // Exponential backoff
     }),
   },
 });
