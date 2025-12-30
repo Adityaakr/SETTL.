@@ -104,11 +104,12 @@ contract SettlementRouter is AccessControl {
         // 2. Repay vault (if financed)
         if (repaymentAmount > 0) {
             // Approve vault to pull repayment from this contract
-            token.safeApprove(address(vault), repaymentAmount);
-            // Vault will transfer repayment from this contract
+            // Note: Using approve directly since we control the flow and reset to zero after
+            token.approve(address(vault), repaymentAmount);
+            // Vault will transfer repayment from this contract via safeTransferFrom
             vault.repay(repaymentAmount);
-            // Reset approval to zero (gas optimization)
-            token.safeApprove(address(vault), 0);
+            // Reset approval to zero (gas optimization and security)
+            token.approve(address(vault), 0);
             // Mark advance as repaid
             advanceEngine.markRepaid(invoiceId);
         }
