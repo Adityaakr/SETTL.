@@ -46,14 +46,17 @@ export default function Financing() {
 
   // Calculate max LTV and APR based on tier
   const ltvMap: Record<string, number> = { A: 0.90, B: 0.65, C: 0.35 }
-  const aprMap: Record<string, { min: number; max: number }> = {
+  // Tier C uses fixed 18% APR, other tiers use ranges
+  const aprMap: Record<string, { min: number; max: number; fixed?: number }> = {
     A: { min: 6, max: 8 },
     B: { min: 8, max: 12 },
-    C: { min: 15.25, max: 18 },
+    C: { min: 15.25, max: 18, fixed: 18 }, // Fixed 18% APR for Tier C
   }
 
   const maxLTV = ltvMap[tierLabel] || 0.75
   const aprRange = aprMap[tierLabel] || { min: 8, max: 12 }
+  // For Tier C, use fixed 18% APR
+  const fixedApr = aprRange.fixed
 
   // Eligible invoices (status === 0, "Issued") - for stats calculation
   const eligibleInvoices = useMemo(() => {
@@ -64,7 +67,7 @@ export default function Financing() {
       .map(invoice => {
         const amount = parseFloat(formatUnits(invoice.amount, 6))
         const maxAdvance = amount * maxLTV
-        const avgApr = ((aprRange.min + aprRange.max) / 2).toFixed(0)
+        const aprDisplay = fixedApr ? `${fixedApr}%` : `${aprRange.min}-${aprRange.max}%`
         
         return {
           id: `INV-${invoice.invoiceId.toString().padStart(6, '0')}`,
@@ -73,12 +76,12 @@ export default function Financing() {
           buyerFull: invoice.buyer,
           amount,
           maxAdvance,
-          apr: `${avgApr}%`,
+          apr: aprDisplay,
           tier: tierLabel,
           dueDate: new Date(Number(invoice.dueDate) * 1000),
         }
       })
-  }, [invoices, maxLTV, aprRange, tierLabel])
+  }, [invoices, maxLTV, aprRange, tierLabel, fixedApr])
 
   // All invoices for display (excluding status 1 which are shown in Active Positions)
   const allInvoices = useMemo(() => {
@@ -89,7 +92,7 @@ export default function Financing() {
       .map(invoice => {
         const amount = parseFloat(formatUnits(invoice.amount, 6))
         const maxAdvance = amount * maxLTV
-        const avgApr = ((aprRange.min + aprRange.max) / 2).toFixed(0)
+        const aprDisplay = fixedApr ? `${fixedApr}%` : `${aprRange.min}-${aprRange.max}%`
         
         return {
           id: `INV-${invoice.invoiceId.toString().padStart(6, '0')}`,
@@ -98,13 +101,13 @@ export default function Financing() {
           buyerFull: invoice.buyer,
           amount,
           maxAdvance,
-          apr: `${avgApr}%`,
+          apr: aprDisplay,
           tier: tierLabel,
           dueDate: new Date(Number(invoice.dueDate) * 1000),
           status: invoice.status,
         }
       })
-  }, [invoices, maxLTV, aprRange, tierLabel])
+  }, [invoices, maxLTV, aprRange, tierLabel, fixedApr])
 
   // Active positions (status === 1, "Financed")
   const activePositions = useMemo(() => {
@@ -189,7 +192,7 @@ export default function Financing() {
         />
         <StatCard
           title="Est. APR Range"
-          value={isLoadingReputation ? "..." : `${aprRange.min}-${aprRange.max}%`}
+          value={isLoadingReputation ? "..." : fixedApr ? `${fixedApr}%` : `${aprRange.min}-${aprRange.max}%`}
           subtitle={isLoadingReputation ? "Loading..." : "Based on your tier"}
           icon={Zap}
           variant="success"
@@ -303,7 +306,7 @@ function ActivePositionCard({
 }: { 
   invoiceId: bigint
   dueDate: string
-  aprRange: { min: number; max: number }
+  aprRange: { min: number; max: number; fixed?: number }
 }) {
   const { advance, isLoading } = useAdvance(invoiceId)
 
@@ -324,9 +327,9 @@ function ActivePositionCard({
   const advanceAmount = parseFloat(formatUnits(advance.advanceAmount, 6))
   const outstanding = parseFloat(formatUnits(advance.totalRepayment, 6))
   
-  // Use tier-based APR range instead of calculating from stored interest
+  // Use tier-based APR (18% for Tier C, range for others)
   // This ensures consistency with the current tier and avoids showing outdated APR values
-  const apr = `${aprRange.min}-${aprRange.max}%`
+  const apr = aprRange.fixed ? `${aprRange.fixed}%` : `${aprRange.min}-${aprRange.max}%`
 
   return (
     <div className="rounded-xl border border-warning/20 bg-warning/5 p-5">
@@ -625,9 +628,9 @@ function EligibleInvoiceCard({
       
       // Convert LTV percentage to basis points (e.g., 0.75 = 7500)
       const ltvBps = Math.floor(maxLTV * 10000)
-      // Use mid-point of APR range in basis points (e.g., 10% = 1000)
-      const avgApr = (aprRange.min + aprRange.max) / 2
-      const aprBps = Math.floor(avgApr * 100)
+      // Use fixed APR for Tier C (18%), otherwise use mid-point of APR range
+      const aprToUse = fixedApr || ((aprRange.min + aprRange.max) / 2)
+      const aprBps = Math.floor(aprToUse * 100)
       
       await requestAdvance(invoice.invoiceId, ltvBps, aprBps)
       
@@ -696,7 +699,7 @@ function EligibleInvoiceCard({
             </div>
             <div>
               <p className="text-muted-foreground">Est. APR</p>
-              <p className="font-semibold">{aprRange.min}-{aprRange.max}%</p>
+              <p className="font-semibold">{fixedApr ? `${fixedApr}%` : `${aprRange.min}-${aprRange.max}%`}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Tier</p>
