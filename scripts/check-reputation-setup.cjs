@@ -4,15 +4,9 @@ const path = require("path");
 const fs = require("fs");
 
 async function main() {
-  // Get seller address from command line args if provided
-  // Hardhat passes args differently, so we need to check process.argv
-  let TEST_SELLER = null;
-  const args = process.argv.slice(2); // Remove 'node' and script path
-  // Filter out hardhat-specific args
-  const nonHardhatArgs = args.filter(arg => !arg.startsWith('--'));
-  if (nonHardhatArgs.length > 0) {
-    TEST_SELLER = nonHardhatArgs[0];
-  }
+  // Get seller address from environment variable if provided
+  // Usage: SELLER_ADDRESS=0x... npm run check:reputation
+  const TEST_SELLER = process.env.SELLER_ADDRESS || null;
 
   console.log("Checking Reputation contract setup...\n");
 
@@ -64,15 +58,24 @@ async function main() {
   // Check recent ReputationUpdated events
   console.log("\n=== Recent Reputation Updates ===");
   try {
+    // Get current block number
+    const currentBlock = await hre.ethers.provider.getBlockNumber();
+    console.log(`Current block: ${currentBlock}`);
+    
+    // Look back more blocks (last 50000 blocks = ~7 days at 12s/block)
+    const fromBlock = Math.max(0, currentBlock - 50000);
+    console.log(`Searching from block ${fromBlock} to ${currentBlock}...`);
+    
     const filter = reputation.filters.ReputationUpdated();
-    const events = await reputation.queryFilter(filter, -10000); // Last ~10000 blocks
+    const events = await reputation.queryFilter(filter, fromBlock, currentBlock);
     
     if (events.length === 0) {
-      console.log("⚠️  No ReputationUpdated events found");
+      console.log("⚠️  No ReputationUpdated events found in last 50,000 blocks");
       console.log("   This could mean:");
       console.log("   - No invoices have been cleared yet");
-      console.log("   - updateReputation is not being called");
-      console.log("   - Events are in older blocks");
+      console.log("   - updateReputation is not being called (check if SettlementRouter has role)");
+      console.log("   - Events are in older blocks (check if you cleared invoices before this");
+      console.log("   - The transaction might be reverting silently");
     } else {
       console.log(`✓ Found ${events.length} ReputationUpdated event(s)`);
       console.log("\nRecent events:");
@@ -100,10 +103,11 @@ async function main() {
       const stats = await reputation.getStats(TEST_SELLER);
       
       console.log(`Score: ${score.toString()}`);
-      console.log(`Tier: ${tier} (${tier === 0 ? 'C' : tier === 1 ? 'B' : 'A'})`);
+      const tierLabel = tier === 0 ? 'C' : tier === 1 ? 'B' : tier === 2 ? 'A' : 'Unknown';
+      console.log(`Tier: ${tier} (${tierLabel})`);
       console.log(`Invoices Cleared: ${stats.invoicesCleared.toString()}`);
       console.log(`Total Volume: ${hre.ethers.formatUnits(stats.totalVolume, 6)} USDC`);
-      console.log(`Last Updated: ${stats.lastUpdated.toString()}`);
+      console.log(`Last Updated: ${stats.lastUpdated.toString() === '0' ? 'Never' : new Date(Number(stats.lastUpdated) * 1000).toISOString()}`);
       
       // Check if score matches expected calculation
       if (stats.invoicesCleared > 0n) {
@@ -120,8 +124,8 @@ async function main() {
       console.error("❌ Error getting seller stats:", error.message);
     }
   } else {
-    console.log("\n💡 Tip: Pass a seller address as argument to check their reputation:");
-    console.log(`   node scripts/check-reputation-setup.cjs <SELLER_ADDRESS>`);
+    console.log("\n💡 Tip: Pass a seller address to check their reputation:");
+    console.log(`   SELLER_ADDRESS=0x... npm run check:reputation`);
   }
 
   console.log("\n=== Summary ===");
