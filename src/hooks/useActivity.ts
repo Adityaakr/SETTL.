@@ -315,7 +315,19 @@ export function useActivity() {
         const fromBlock = Math.max(0n, currentBlock - BigInt(5000));
         
         const pastActivities: Activity[] = [];
-        const blockCache = new Map<string, number>(); // Cache block timestamps
+        const blockCache = new Map<string, number>(); // Cache block timestamps for performance
+        
+        // Helper to get block timestamp (cached)
+        const getBlockTimestamp = async (blockNumber: bigint): Promise<number> => {
+          const blockKey = blockNumber.toString();
+          if (blockCache.has(blockKey)) {
+            return blockCache.get(blockKey)!;
+          }
+          const block = await publicClient.getBlock({ blockNumber });
+          const timestamp = Number(block.timestamp) * 1000;
+          blockCache.set(blockKey, timestamp);
+          return timestamp;
+        };
 
         // Fetch InvoiceCreated events
         try {
