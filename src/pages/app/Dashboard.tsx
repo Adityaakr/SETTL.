@@ -117,7 +117,8 @@ export default function Dashboard() {
   }, [invoices])
 
   // Use score from hook (includes frontend tracking updates)
-  const displayScore = score > 0 ? score : 450
+  // Default to 510 (Tier B) for now, then updates from there
+  const displayScore = score > 0 ? score : 510
   
   // Calculate progress to next tier
   const progressToNextTier = useMemo(() => {

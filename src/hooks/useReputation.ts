@@ -85,9 +85,11 @@ export function useReputation(sellerAddress?: string) {
       // Always sync frontend score with chain score when chain updates
       // This ensures we show the latest on-chain value, but frontend updates take priority during real-time events
       if (frontendScore === null) {
-        // Initialize from chain if not set
-        console.log('🎯 Initializing frontend score from chain:', chainScore);
-        setFrontendScore(chainScore);
+        // Initialize to 510 (Tier B) for now, then update from there
+        // Use chain score if it's higher than 510, otherwise start at 510
+        const initialScore = Math.max(510, chainScore);
+        console.log('🎯 Initializing frontend score to:', initialScore, '(chain:', chainScore, ')');
+        setFrontendScore(initialScore);
       } else if (chainScore > frontendScore) {
         // Update if chain score is higher (more authoritative)
         console.log('🎯 Updating frontend score from chain:', chainScore, '(was:', frontendScore, ')');
@@ -95,9 +97,9 @@ export function useReputation(sellerAddress?: string) {
       }
       // If frontendScore > chainScore, keep frontend score (it's a recent update that hasn't synced yet)
     } else if (frontendScore === null) {
-      // Initialize to 450 (Tier C starting point) if no chain data yet
-      console.log('🎯 Initializing frontend score to default 450');
-      setFrontendScore(450);
+      // Initialize to 510 (Tier B) if no chain data yet
+      console.log('🎯 Initializing frontend score to default 510 (Tier B)');
+      setFrontendScore(510);
     }
   }, [score, frontendScore]);
 
