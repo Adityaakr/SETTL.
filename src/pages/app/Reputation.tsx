@@ -50,10 +50,17 @@ export default function Reputation() {
   const { score, tierLabel, stats, isLoading: isLoadingReputation } = useReputation()
   const { invoices, isLoading: isLoadingInvoices } = useSellerInvoicesWithData()
   
-  // Use score from hook (includes frontend tracking updates for real-time score changes)
-  // The useReputation hook now tracks cleared invoices in real-time and updates the score
-  // Default to 510 (Tier B) for now, then updates from there
-  const currentScore = score > 0 ? score : 510
+  // Calculate score from cleared invoices: base 450 + (20 points per cleared invoice)
+  // This ensures the UI shows the correct score even if chain data is outdated
+  const calculatedScoreFromInvoices = useMemo(() => {
+    const baseScore = 450; // Starting score (Tier C minimum)
+    const pointsPerInvoice = 20;
+    return baseScore + (clearedInvoices.length * pointsPerInvoice);
+  }, [clearedInvoices.length]);
+
+  // Use the higher of: hook score (from chain/frontend tracking) or calculated from invoices
+  // This ensures we show the most accurate score
+  const currentScore = Math.max(score > 0 ? score : 450, calculatedScoreFromInvoices);
   
   // Determine current tier based on score
   // Tier C: 0-450, Tier B: 500-850, Tier A: 850-1000
