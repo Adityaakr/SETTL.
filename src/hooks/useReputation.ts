@@ -90,16 +90,24 @@ export function useReputation(sellerAddress?: string) {
         const initialScore = Math.max(510, chainScore);
         console.log('🎯 Initializing frontend score to:', initialScore, '(chain:', chainScore, ')');
         setFrontendScore(initialScore);
+        // Also set tier to B if score is 510 or higher
+        if (initialScore >= 500) {
+          setFrontendTier(1); // Tier B
+        }
       } else if (chainScore > frontendScore) {
         // Update if chain score is higher (more authoritative)
         console.log('🎯 Updating frontend score from chain:', chainScore, '(was:', frontendScore, ')');
         setFrontendScore(chainScore);
+        // Update tier based on new score
+        const newTier = calculateTier(chainScore);
+        setFrontendTier(newTier);
       }
       // If frontendScore > chainScore, keep frontend score (it's a recent update that hasn't synced yet)
     } else if (frontendScore === null) {
       // Initialize to 510 (Tier B) if no chain data yet
       console.log('🎯 Initializing frontend score to default 510 (Tier B)');
       setFrontendScore(510);
+      setFrontendTier(1); // Tier B
     }
   }, [score, frontendScore]);
 
