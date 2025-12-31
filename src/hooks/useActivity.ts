@@ -45,7 +45,7 @@ export function useActivity() {
     eventName: 'InvoiceCreated',
     onLogs(logs) {
       logs.forEach((log) => {
-        const { invoiceId, seller, buyer, amount } = log.args as any;
+        const { invoiceId, seller, buyer, amount } = (log as any).args;
         if (seller?.toLowerCase() === address?.toLowerCase() || buyer?.toLowerCase() === address?.toLowerCase()) {
           addActivity({
             id: `invoice-created-${invoiceId}-${log.transactionHash}-${log.logIndex}`,
@@ -72,7 +72,7 @@ export function useActivity() {
     eventName: 'InvoicePaid',
     onLogs(logs) {
       logs.forEach((log) => {
-        const { invoiceId, buyer, amount } = log.args as any;
+        const { invoiceId, buyer, amount } = (log as any).args;
         if (buyer?.toLowerCase() === address?.toLowerCase()) {
           addActivity({
             id: `invoice-paid-${invoiceId}-${log.transactionHash}-${log.logIndex}`,
@@ -97,7 +97,7 @@ export function useActivity() {
     eventName: 'InvoiceCleared',
     onLogs(logs) {
       logs.forEach((log) => {
-        const { invoiceId, seller, sellerAmount } = log.args as any;
+        const { invoiceId, seller, sellerAmount } = (log as any).args;
         if (seller?.toLowerCase() === address?.toLowerCase()) {
           addActivity({
             id: `invoice-cleared-${invoiceId}-${log.transactionHash}-${log.logIndex}`,
@@ -122,7 +122,7 @@ export function useActivity() {
     eventName: 'InvoiceSettled',
     onLogs(logs) {
       logs.forEach((log) => {
-        const { invoiceId, seller, sellerAmount } = log.args as any;
+        const { invoiceId, seller, sellerAmount } = (log as any).args;
         if (seller?.toLowerCase() === address?.toLowerCase()) {
           // Update or add activity for invoice cleared
           addActivity({
@@ -148,7 +148,7 @@ export function useActivity() {
     eventName: 'AdvanceRequested',
     onLogs(logs) {
       logs.forEach((log) => {
-        const { invoiceId, seller, advanceAmount } = log.args as any;
+        const { invoiceId, seller, advanceAmount } = (log as any).args;
         if (seller?.toLowerCase() === address?.toLowerCase()) {
           addActivity({
             id: `advance-requested-${invoiceId}-${log.transactionHash}-${log.logIndex}`,
@@ -173,7 +173,7 @@ export function useActivity() {
     eventName: 'AdvanceRepaid',
     onLogs(logs) {
       logs.forEach((log) => {
-        const { invoiceId, seller, repaymentAmount } = log.args as any;
+        const { invoiceId, seller, repaymentAmount } = (log as any).args;
         if (seller?.toLowerCase() === address?.toLowerCase()) {
           addActivity({
             id: `advance-repaid-${invoiceId}-${log.transactionHash}-${log.logIndex}`,
@@ -198,7 +198,7 @@ export function useActivity() {
     eventName: 'Deposit',
     onLogs(logs) {
       logs.forEach((log) => {
-        const { user, amount } = log.args as any;
+        const { user, amount } = (log as any).args;
         if (user?.toLowerCase() === address?.toLowerCase()) {
           addActivity({
             id: `vault-deposit-${log.transactionHash}-${log.logIndex}`,
@@ -223,7 +223,7 @@ export function useActivity() {
     eventName: 'Withdraw',
     onLogs(logs) {
       logs.forEach((log) => {
-        const { user, amount } = log.args as any;
+        const { user, amount } = (log as any).args;
         if (user?.toLowerCase() === address?.toLowerCase()) {
           addActivity({
             id: `vault-withdraw-${log.transactionHash}-${log.logIndex}`,
@@ -248,7 +248,7 @@ export function useActivity() {
     eventName: 'Stake',
     onLogs(logs) {
       logs.forEach((log) => {
-        const { user, usmtAmount } = log.args as any;
+        const { user, usmtAmount } = (log as any).args;
         if (user?.toLowerCase() === address?.toLowerCase()) {
           addActivity({
             id: `stake-${log.transactionHash}-${log.logIndex}`,
@@ -273,7 +273,7 @@ export function useActivity() {
     eventName: 'Unstake',
     onLogs(logs) {
       logs.forEach((log) => {
-        const { user, usmtAmount } = log.args as any;
+        const { user, usmtAmount } = (log as any).args;
         if (user?.toLowerCase() === address?.toLowerCase()) {
           addActivity({
             id: `unstake-${log.transactionHash}-${log.logIndex}`,
