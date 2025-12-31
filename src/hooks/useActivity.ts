@@ -372,8 +372,8 @@ export function useActivity() {
               console.log('✅ Parsed InvoiceSettled logs:', parsedLogs.length);
 
               for (const log of parsedLogs) {
-                const decoded = log.args as any;
-                console.log('🔍 Checking log:', { seller: decoded.seller, address });
+                const decoded = (log as any).args;
+                console.log('🔍 Checking log:', { seller: decoded?.seller, address });
                 if (decoded.seller?.toLowerCase() === address?.toLowerCase()) {
                   console.log('✅ Match found for InvoiceSettled event');
                   const activity = await createActivityFromLog(
