@@ -11,29 +11,13 @@ const mantleTestnetChain = {
   },
   rpcUrls: {
     default: {
-      // Primary RPC: drpc.org (user-provided, reliable)
       http: [
-        'https://mantle-sepolia.drpc.org',
-        'https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
         'https://rpc.sepolia.mantle.xyz',
-      ],
-      // WebSocket for reads/subscriptions (data fetching)
-      webSocket: [
-        'wss://mantle-sepolia.drpc.org',
-        'wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
       ],
     },
     public: {
-      // Primary RPC: drpc.org (user-provided, reliable)
       http: [
-        'https://mantle-sepolia.drpc.org',
-        'https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
         'https://rpc.sepolia.mantle.xyz',
-      ],
-      // WebSocket for reads/subscriptions (data fetching)
-      webSocket: [
-        'wss://mantle-sepolia.drpc.org',
-        'wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
       ],
     },
   },
@@ -77,11 +61,7 @@ export const privyConfig = {
     },
     // Chain configuration - Mantle Sepolia Testnet (5003)
     // Note: Make sure Mantle Sepolia Testnet (5003) is enabled in your Privy dashboard
-    // IMPORTANT FOR PRODUCTION: Add your production domain to allowed origins in Privy dashboard
-    // - Go to Privy Dashboard → Your App → Settings → Allowed Origins
-    // - Add: https://your-project.vercel.app (production)
-    // - Add: https://*.vercel.app (preview deployments)
-    // Without this, Privy will reject requests from your production domain!
+    // IMPORTANT: Add http://localhost:8080 to allowed origins in Privy dashboard to fix origin mismatch
     defaultChain: mantleTestnetChain,
     supportedChains: [mantleTestnetChain],
   },

@@ -46,30 +46,31 @@ export default function Dashboard() {
   const { score, tierLabel, stats, isLoading: isLoadingReputation } = useReputation()
   const { balance: usdcBalance, isLoading: isLoadingBalance, error: balanceError } = useTokenBalance()
 
-  // Calculate score from cleared invoices: base 450 + (20 points per cleared invoice)
-  // This ensures the UI shows the correct score even if chain data is outdated
-  const clearedInvoicesForScore = useMemo(() => {
+  // Get cleared invoices (status === 3) - MUST BE BEFORE score calculation
+  const clearedInvoices = useMemo(() => {
     if (!invoices) return []
-    return invoices.filter(inv => inv.status === 3) // Status 3 = Cleared
+    return invoices.filter(inv => inv.status === 3)
   }, [invoices])
-
-  const calculatedScoreFromInvoices = useMemo(() => {
-    const baseScore = 450 // Starting score (Tier C minimum)
-    const pointsPerInvoice = 20
-    return baseScore + (clearedInvoicesForScore.length * pointsPerInvoice)
-  }, [clearedInvoicesForScore.length])
-
-  // Use the higher of: hook score (from chain/frontend tracking) or calculated from invoices
-  // This ensures we show the most accurate score
-  // Convert score to number if it's a bigint
-  const scoreNumber = score ? (typeof score === 'bigint' ? Number(score) : score) : 0
+  
+  // Calculate score from cleared invoices count (more accurate than on-chain if reputation wasn't updated)
+  // Formula: 450 (base) + (clearedCount × 20 points per invoice)
   const displayScore = useMemo(() => {
-    const calculated = calculatedScoreFromInvoices
-    const hookScore = scoreNumber > 0 ? scoreNumber : 450
-    const finalScore = Math.max(hookScore, calculated)
-    console.log('📊 Dashboard displayScore calculation:', { hookScore, calculated, finalScore, clearedCount: clearedInvoicesForScore.length })
-    return finalScore
-  }, [scoreNumber, calculatedScoreFromInvoices, clearedInvoicesForScore.length])
+    const clearedCount = clearedInvoices.length
+    const calculatedScoreFromInvoices = 450 + (clearedCount * 20)
+    const hookScore = score > 0 ? score : 510
+    const calculated = Math.max(hookScore, calculatedScoreFromInvoices)
+    
+    console.log('📊 Dashboard displayScore calculation:', {
+      clearedCount,
+      calculatedScoreFromInvoices,
+      hookScore,
+      finalDisplayScore: calculated,
+      invoiceCount: invoices?.length,
+      clearedInvoicesCount: clearedInvoices.length
+    })
+    
+    return calculated
+  }, [clearedInvoices, score, invoices?.length])
   
   // Calculate tier from score (score 510 should be Tier B)
   const displayTier = useMemo(() => {
@@ -132,11 +133,11 @@ export default function Dashboard() {
     }
   }, [invoices, effectiveTierLabel])
 
-  // Get recent invoices (6 most recent to fit in the box)
+  // Get recent invoices (4 most recent)
   const recentInvoices = useMemo(() => {
     if (!invoices || invoices.length === 0) return []
     
-    return invoices.slice(0, 6).map(invoice => {
+    return invoices.slice(0, 4).map(invoice => {
       const invoiceDate = new Date(Number(invoice.createdAt) * 1000)
       const amount = parseFloat(formatUnits(invoice.amount, 6))
       

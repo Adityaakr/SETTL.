@@ -15,7 +15,7 @@ export function useVault() {
     functionName: 'getTotalLiquidity',
     query: {
       enabled: !!contractAddresses.Vault,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000, // Reduced frequency to avoid rate limits
     },
   });
 
@@ -25,7 +25,7 @@ export function useVault() {
     functionName: 'getTotalBorrowed',
     query: {
       enabled: !!contractAddresses.Vault,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000, // Reduced frequency to avoid rate limits
     },
   });
 
@@ -35,7 +35,7 @@ export function useVault() {
     functionName: 'getUtilizationRate',
     query: {
       enabled: !!contractAddresses.Vault,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000, // Reduced frequency to avoid rate limits
     },
   });
 
@@ -46,7 +46,7 @@ export function useVault() {
     args: address ? [address] : undefined,
     query: {
       enabled: !!contractAddresses.Vault && !!address,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000, // Reduced frequency to avoid rate limits
     },
   });
 
@@ -57,7 +57,7 @@ export function useVault() {
     args: address ? [address] : undefined,
     query: {
       enabled: !!contractAddresses.Vault && !!address,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000, // Reduced frequency to avoid rate limits
     },
   });
 
@@ -67,7 +67,7 @@ export function useVault() {
     functionName: 'totalShares',
     query: {
       enabled: !!contractAddresses.Vault,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000, // Reduced frequency to avoid rate limits
     },
   });
 
@@ -319,7 +319,7 @@ export function useUSDCAllowance(spender?: string) {
     args: address && spender ? [address, spender as `0x${string}`] : undefined,
     query: {
       enabled: !!address && !!spender && !!contractAddresses.DemoUSDC,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 15000, // Reduced frequency to avoid rate limits
     },
   });
 

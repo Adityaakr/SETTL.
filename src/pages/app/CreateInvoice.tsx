@@ -56,8 +56,30 @@ export default function CreateInvoice() {
   const { address } = usePrivyAccount()
   const { createInvoice, isPending, isConfirming, isSuccess, error, hash, receipt } = useCreateInvoice()
   const successToastShown = useRef<string | null>(null)
+  const submittedToastShown = useRef<string | null>(null)
   const [successModalOpen, setSuccessModalOpen] = useState(false)
   const [successHash, setSuccessHash] = useState<string | null>(null)
+  
+  // Show toast when transaction is submitted
+  useEffect(() => {
+    if (hash && !submittedToastShown.current) {
+      submittedToastShown.current = hash
+      toast.info("Transaction submitted", {
+        description: "Please confirm the transaction in your wallet, then wait for on-chain confirmation...",
+        duration: 5000,
+      })
+    }
+  }, [hash])
+
+  // Show toast when transaction is confirming
+  useEffect(() => {
+    if (hash && isConfirming && !isSuccess && submittedToastShown.current === hash) {
+      toast.info("Transaction confirming", {
+        description: "Waiting for on-chain confirmation...",
+        duration: 3000,
+      })
+    }
+  }, [hash, isConfirming, isSuccess])
   
   // Debug logging
   useEffect(() => {
@@ -96,12 +118,20 @@ export default function CreateInvoice() {
     )
   }
 
-  // Show success modal when transaction is confirmed and store buyer metadata
+  // Show success toast and modal when transaction is confirmed and store buyer metadata
   useEffect(() => {
     if (hash && isSuccess && receipt && successToastShown.current !== hash) {
       successToastShown.current = hash
       setIsSubmitting(false)
       setSuccessHash(hash)
+      
+      // Show success toast
+      toast.success("Invoice created successfully!", {
+        description: "Your invoice has been created on-chain.",
+        duration: 5000,
+      })
+      
+      // Open success modal
       setSuccessModalOpen(true)
       
       // Extract invoice ID from transaction receipt logs
@@ -156,6 +186,11 @@ export default function CreateInvoice() {
                             error.message?.includes('already be submitted') ||
                             error.message?.includes('nonce too low')
       
+      // Check if it's a temporary RPC error that suggests retry
+      const isTemporaryRpcError = error.message?.includes('Network temporarily unavailable') ||
+                                  error.message?.includes('temporary') ||
+                                  error.message?.includes('Please retry')
+      
       if (isAlreadyKnown && hash) {
         // If we have a hash, transaction was likely submitted successfully
         // Don't show error, just log it
@@ -165,6 +200,28 @@ export default function CreateInvoice() {
         toast.warning("Transaction may already be submitted", {
           description: "Please check your wallet transactions. The invoice might have been created successfully.",
           duration: 8000,
+        })
+      } else if (isInsufficientFunds) {
+        // Show user-friendly message for insufficient funds
+        toast.error("💸 Insufficient Funds", {
+          description: (
+            <div className="space-y-1">
+              <p>{error.message || "You don't have enough MNT to pay for gas fees."}</p>
+              <p className="text-sm text-muted-foreground">Please add more MNT (Mantle native token) to your wallet.</p>
+            </div>
+          ),
+          duration: 12000, // Show longer for important message
+        })
+      } else if (isTemporaryRpcError) {
+        // Show user-friendly message for temporary RPC errors
+        toast.error("⚠️ Network Error - Please Retry", {
+          description: (
+            <div className="space-y-1">
+              <p>{error.message || "The network is temporarily unavailable. Please wait a moment and try again."}</p>
+              <p className="text-sm text-muted-foreground">This is usually a temporary issue with the RPC endpoint.</p>
+            </div>
+          ),
+          duration: 10000, // Show longer for retry instructions
         })
       } else {
         // Only show error if transaction definitely failed (no hash, no success)
@@ -260,11 +317,36 @@ export default function CreateInvoice() {
       
       // Only show error if it's not an "already known" type error
       // (those mean transaction was actually submitted)
-      if (!err?.message?.includes('already known') && 
-          !err?.message?.includes('Transaction appears to have been submitted')) {
-        toast.error("Failed to create invoice", {
-          description: err?.message || "Please try again",
-        })
+      const errorMessage = err?.message || String(err || '');
+      const errorMsgLower = errorMessage.toLowerCase();
+      const isAlreadyKnown = errorMessage.includes('already known') || 
+                            errorMessage.includes('Transaction appears to have been submitted');
+      const isTemporaryRpcError = errorMessage.includes('Network temporarily unavailable') ||
+                                  errorMessage.includes('temporary') ||
+                                  errorMessage.includes('Please retry') ||
+                                  errorMessage.includes('Status: 500') ||
+                                  errorMessage.includes('Temporary internal error');
+      const isInsufficientFunds = errorMsgLower.includes('insufficient funds') ||
+                                  errorMsgLower.includes('insufficient balance') ||
+                                  errorMessage.includes('overshot') ||
+                                  errorMsgLower.includes('insufficient funds for gas');
+      
+      if (!isAlreadyKnown) {
+        if (isInsufficientFunds) {
+          toast.error("💸 Insufficient Funds", {
+            description: errorMessage || "You don't have enough MNT to pay for gas fees. Please add more MNT to your wallet.",
+            duration: 12000,
+          })
+        } else if (isTemporaryRpcError) {
+          toast.error("⚠️ Network Error - Please Retry", {
+            description: errorMessage || "The network is temporarily unavailable. Please wait a moment and try again.",
+            duration: 10000,
+          })
+        } else {
+          toast.error("Failed to create invoice", {
+            description: errorMessage || "Please try again",
+          })
+        }
       }
       setIsSubmitting(false)
     }

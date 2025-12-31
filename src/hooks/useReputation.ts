@@ -294,19 +294,31 @@ export function useReputation(sellerAddress?: string) {
   });
 
   // Use frontend score if available, otherwise fall back to chain score
-  let displayScore = frontendScore !== null ? frontendScore : (score ? Number(score) : 0);
-  let displayTier = frontendTier !== null ? frontendTier : ((tier as ReputationTier | undefined) ?? 0);
+  let displayScore = frontendScore !== null ? frontendScore : (score ? Number(score) : 510);
+  let displayTier = frontendTier !== null ? frontendTier : ((tier as ReputationTier | undefined) ?? 1);
 
-  // If chain score is available but seems low (450 default or 510), and we have stats showing cleared invoices,
-  // calculate expected score: 450 (base) + (invoicesCleared × 20)
+  // Calculate expected score based on cleared invoices count from stats
+  // Formula: 450 (base) + (invoicesCleared × 20 points per invoice)
   const reputationStats = stats as SellerStats | undefined;
-  if (reputationStats && reputationStats.invoicesCleared > 0n) {
-    const expectedScoreFromCleared = 450 + (Number(reputationStats.invoicesCleared) * 20);
-    // Use the higher of: on-chain score or calculated score from cleared invoices
-    // This ensures we show the correct score even if on-chain hasn't updated yet
-    if (expectedScoreFromCleared > displayScore) {
-      console.log('🎯 Using calculated score from cleared invoices:', expectedScoreFromCleared, '(on-chain:', displayScore, ', cleared:', reputationStats.invoicesCleared.toString(), ')');
-      displayScore = Math.min(1000, expectedScoreFromCleared); // Cap at 1000
+  if (reputationStats) {
+    const invoicesClearedCount = Number(reputationStats.invoicesCleared);
+    // Calculate expected score from cleared invoices count
+    const calculatedScoreFromCleared = 450 + (invoicesClearedCount * 20);
+    
+    console.log('🔍 Reputation score calculation:', {
+      frontendScore,
+      chainScore: score ? Number(score) : 'none',
+      currentDisplayScore: displayScore,
+      invoicesClearedCount,
+      calculatedScoreFromCleared,
+      statsScore: Number(reputationStats.score)
+    });
+    
+    // Use the higher score (calculated from cleared count vs on-chain score)
+    // This handles cases where reputation wasn't updated for old invoices
+    if (calculatedScoreFromCleared > displayScore) {
+      console.log('✅ Updating display score from cleared invoices count:', calculatedScoreFromCleared);
+      displayScore = Math.min(1000, calculatedScoreFromCleared); // Cap at 1000
       displayTier = calculateTier(displayScore);
     }
   }

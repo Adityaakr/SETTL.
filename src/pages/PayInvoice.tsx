@@ -96,14 +96,14 @@ export default function PayInvoice() {
                           symbol: 'MNT',
                           decimals: 18,
                         },
-                        rpcUrls: ['https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX'],
+                        rpcUrls: ['https://rpc.sepolia.mantle.xyz'],
                         blockExplorerUrls: ['https://explorer.testnet.mantle.xyz'],
                       }],
                     })
                   } catch (addError) {
                     console.error("Failed to add network:", addError)
                     toast.error("Please add Mantle Sepolia Testnet manually", {
-                      description: "Network details: Chain ID 5003, RPC: https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX",
+                      description: "Network details: Chain ID 5003, RPC: https://rpc.sepolia.mantle.xyz",
                       duration: 10000,
                     })
                   }
@@ -113,7 +113,7 @@ export default function PayInvoice() {
               }
             } else {
               toast.error("Please switch to Mantle Sepolia Testnet", {
-                description: "Chain ID: 5003 | RPC: https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX",
+                description: "Chain ID: 5003 | RPC: https://rpc.sepolia.mantle.xyz",
                 duration: 8000,
               })
             }
@@ -121,7 +121,7 @@ export default function PayInvoice() {
         } catch (error: any) {
           console.error("Failed to switch chain:", error)
           toast.error("Wrong Network - Please switch to Mantle Sepolia Testnet", {
-            description: "Chain ID: 5003 | RPC: https://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX | Explorer: https://explorer.testnet.mantle.xyz",
+            description: "Chain ID: 5003 | RPC: https://rpc.sepolia.mantle.xyz | Explorer: https://explorer.testnet.mantle.xyz",
             duration: 10000,
           })
         }

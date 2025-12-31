@@ -39,20 +39,8 @@ contracts.json
 .env.local
 .env.*.local
 .env.production
-.env.backup
-*.env.backup
-.env.*.backup
-.env.tmp
-*.env.tmp
-.env.*.tmp
 
 # Documentation (keep only README.md and INTRO.md)
 *.md
 !README.md
 !INTRO.md
-
-# npm config (keep .npmrc for build configuration)
-# .npmrc
-
-# npm config
-.npmrc

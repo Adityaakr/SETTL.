@@ -16,7 +16,7 @@ export function useStaking() {
     args: address ? [address] : undefined,
     query: {
       enabled: !!contractAddresses.Staking && !!address,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000,
     },
   });
 
@@ -27,7 +27,7 @@ export function useStaking() {
     args: address ? [address] : undefined,
     query: {
       enabled: !!contractAddresses.Staking && !!address,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000,
     },
   });
 
@@ -37,7 +37,7 @@ export function useStaking() {
     functionName: 'totalStaked',
     query: {
       enabled: !!contractAddresses.Staking,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000,
     },
   });
 
@@ -229,7 +229,7 @@ export function useUSMTAllowance(spender?: string) {
     args: address && spender ? [address, spender as `0x${string}`] : undefined,
     query: {
       enabled: !!address && !!spender && !!contractAddresses.USMTPlus,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 15000,
     },
   });
 

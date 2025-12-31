@@ -37,7 +37,7 @@ export function useInvoice(invoiceId: bigint | string | undefined) {
     args: invoiceId ? [BigInt(invoiceId.toString())] : undefined,
     query: {
       enabled: !!invoiceId && !!contractAddresses.InvoiceRegistry,
-      refetchInterval: false, // Disable polling - rely on event subscriptions for real-time updates
+      refetchInterval: 15000, // Reduced frequency to avoid rate limits
     },
   });
 
@@ -285,6 +285,66 @@ export function useCreateInvoice() {
           return { hash: txHash };
         }
         
+        // Handle temporary RPC errors (500 status, "Temporary internal error")
+        const errorMessage = err?.message || String(err || '');
+        const errorMsgLower = errorMessage.toLowerCase();
+        const errorString = String(err || '');
+        const errorStringLower = errorString.toLowerCase();
+        
+        // Check for various forms of temporary RPC errors
+        const status500 = errorMessage.includes('Status: 500') || 
+                         errorMessage.includes('status 500') ||
+                         errorString.includes('Status: 500') ||
+                         errorString.includes('status 500') ||
+                         err?.status === 500 ||
+                         err?.response?.status === 500;
+        const isTemporaryRpcError = status500 || 
+                                    errorMsgLower.includes('temporary internal error') ||
+                                    errorStringLower.includes('temporary internal error') ||
+                                    errorMsgLower.includes('please retry') ||
+                                    errorStringLower.includes('please retry') ||
+                                    err?.code === 19 ||
+                                    err?.cause?.code === 19 ||
+                                    (err?.cause && String(err.cause).includes('500')) ||
+                                    (err?.details && String(err.details).includes('Temporary internal error'));
+        
+        if (isTemporaryRpcError) {
+          console.warn('⚠️ Temporary RPC error detected. Suggesting retry...', {
+            error: err,
+            message: errorMessage,
+            errorString,
+            code: err?.code,
+            status: err?.status,
+          });
+          const retryError = new Error(
+            'Network temporarily unavailable. This is usually a temporary issue. Please wait a moment and try again.'
+          );
+          retryError.cause = err;
+          setError(retryError);
+          setIsPending(false);
+          throw retryError;
+        }
+        
+        // Handle insufficient funds error (reuse errorMessage declared above)
+        const isInsufficientFunds = errorMsgLower.includes('insufficient funds') ||
+                                   errorMsgLower.includes('insufficient balance') ||
+                                   errorMessage.includes('overshot') ||
+                                   (err?.details && String(err.details).includes('insufficient funds'));
+        
+        if (isInsufficientFunds) {
+          console.warn('⚠️ Insufficient funds for gas detected:', {
+            error: err,
+            message: errorMessage,
+          });
+          const fundsError = new Error(
+            'Insufficient funds for gas fees. Please add more MNT (Mantle native token) to your wallet to cover transaction fees.'
+          );
+          fundsError.cause = err;
+          setError(fundsError);
+          setIsPending(false);
+          throw fundsError;
+        }
+        
         // Handle user rejection
         if (err?.message?.includes('user rejected') || err?.message?.includes('User denied')) {
         setError(new Error('Transaction was rejected. Please try again.'));
@@ -347,7 +407,7 @@ export function useSellerInvoices(sellerAddress?: string) {
     args: seller ? [seller as `0x${string}`] : undefined,
     query: {
       enabled: !!seller && !!contractAddresses.InvoiceRegistry,
-      refetchInterval: false, // Disable polling - rely on event subscriptions for real-time updates
+      refetchInterval: 10000, // Poll every 10 seconds for invoice updates
     },
   });
 
