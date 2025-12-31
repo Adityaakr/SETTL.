@@ -33,7 +33,7 @@ export function useAdvance(invoiceId: bigint | string | undefined) {
     args: invoiceId ? [BigInt(invoiceId.toString())] : undefined,
     query: {
       enabled: !!invoiceId && !!contractAddresses.AdvanceEngine,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000, // Reduced frequency to avoid rate limits
     },
   });
 
@@ -83,7 +83,7 @@ export function useTotalDebt(sellerAddress?: string) {
     args: seller ? [seller as `0x${string}`] : undefined,
     query: {
       enabled: !!seller && !!contractAddresses.AdvanceEngine,
-      refetchInterval: false, // Disable polling - rely on event subscriptions
+      refetchInterval: 30000, // Reduced frequency to avoid rate limits
     },
   });
 
@@ -146,40 +146,91 @@ export function useRequestAdvance() {
         args: [BigInt(invoiceId.toString()), BigInt(ltvBps), BigInt(aprBps)],
       });
 
-      const transactionResult = await sendTransaction(
-        {
-          to: contractAddresses.AdvanceEngine as `0x${string}`,
-          data: data,
-          value: 0n,
-          chainId: 5003,
-        },
-        {
-          address: embeddedWallet.address,
-          uiOptions: {
-            showWalletUIs: false,
+      let transactionResult;
+      try {
+        transactionResult = await sendTransaction(
+          {
+            to: contractAddresses.AdvanceEngine as `0x${string}`,
+            data: data,
+            value: 0n,
+            chainId: 5003,
           },
-        }
-      );
+          {
+            address: embeddedWallet.address,
+            uiOptions: {
+              showWalletUIs: false,
+            },
+          }
+        );
 
-      setHash(transactionResult.hash);
-      setIsPending(false);
-      return transactionResult;
+        setHash(transactionResult.hash);
+        setIsPending(false);
+        return transactionResult;
+      } catch (txErr: any) {
+        // Check if transaction was actually submitted (handle "already known" errors)
+        const resultHash = transactionResult?.hash;
+        const errorHash = txErr?.hash || 
+          txErr?.transactionHash || 
+          txErr?.data?.hash || 
+          txErr?.receipt?.transactionHash ||
+          txErr?.transaction?.hash ||
+          txErr?.txHash ||
+          txErr?.result?.hash;
+        
+        const txHash = resultHash || errorHash;
+        const errorMessage = txErr?.message || txErr?.shortMessage || String(txErr);
+        const errorMsgLower = errorMessage.toLowerCase();
+        
+        // Handle "already known" / "nonce too low" errors - transaction was submitted successfully
+        if (errorMsgLower.includes('already known') || 
+            errorMsgLower.includes('nonce too low') || 
+            errorMsgLower.includes('replacement transaction underpriced') ||
+            errorMsgLower.includes('Transaction appears to have been submitted')) {
+          
+          if (txHash) {
+            console.log('✅ Transaction was submitted successfully despite error:', txHash);
+            setHash(txHash);
+            setIsPending(false);
+            setError(null);
+            return { hash: txHash };
+          }
+          
+          // No hash found but transaction was submitted
+          console.warn('⚠️ Transaction was submitted but hash not found');
+          setIsPending(false);
+          setError(null);
+          return { hash: undefined };
+        }
+        
+        // Enhanced error handling for "Invalid status" errors
+        if (errorMsgLower.includes('invalid status') || errorMsgLower.includes('execution reverted: invalid status')) {
+          const enhancedError = new Error(
+            'This invoice is no longer eligible for advance. It may have been paid or financed already. Please refresh the page to see the latest status.'
+          );
+          enhancedError.cause = txErr;
+          setError(enhancedError);
+          setIsPending(false);
+          throw enhancedError;
+        }
+        
+        // If we have a hash, transaction was submitted
+        if (txHash) {
+          console.log('✅ Transaction submitted with hash:', txHash);
+          setHash(txHash);
+          setIsPending(false);
+          setError(null);
+          return { hash: txHash };
+        }
+        
+        // Other errors
+        setError(txErr);
+        setIsPending(false);
+        throw txErr;
+      }
     } catch (err: any) {
+      // Final catch for any unexpected errors
       setError(err);
       setIsPending(false);
-      
-      // Enhanced error handling for "Invalid status" errors
-      const errorMessage = err?.message || err?.shortMessage || String(err);
-      const errorMsgLower = errorMessage.toLowerCase();
-      
-      if (errorMsgLower.includes('invalid status') || errorMsgLower.includes('execution reverted: invalid status')) {
-        const enhancedError = new Error(
-          'This invoice is no longer eligible for advance. It may have been paid or financed already. Please refresh the page to see the latest status.'
-        );
-        enhancedError.cause = err;
-        throw enhancedError;
-      }
-      
       throw err;
     }
   };
