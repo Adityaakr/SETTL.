@@ -410,20 +410,20 @@ export function useActivity() {
               fromBlock,
               toBlock: currentBlock,
             });
-            console.log('📋 Raw InvoiceCreated logs fetched:', rawLogs.length);
+            console.log('📋 Raw InvoiceRegistry logs fetched:', rawLogs.length);
 
+            // Parse InvoiceCreated events
             try {
-              const parsedLogs = parseEventLogs({
+              const createdLogs = parseEventLogs({
                 abi: InvoiceRegistryABI,
                 logs: rawLogs,
                 eventName: 'InvoiceCreated',
               });
-              console.log('✅ Parsed InvoiceCreated logs:', parsedLogs.length);
+              console.log('✅ Parsed InvoiceCreated logs:', createdLogs.length);
 
-              for (const log of parsedLogs) {
+              for (const log of createdLogs) {
                 const decoded = log.args as any;
                 if (decoded.seller?.toLowerCase() === address?.toLowerCase() || decoded.buyer?.toLowerCase() === address?.toLowerCase()) {
-                  console.log('✅ Match found for InvoiceCreated event');
                   const activity = await createActivityFromLog(
                     { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
                     'invoice_created',
@@ -437,18 +437,279 @@ export function useActivity() {
                   );
                   if (activity) {
                     allActivities.push(activity);
-                    console.log('➕ Added activity:', activity.title);
+                    console.log('➕ Added InvoiceCreated activity:', activity.title);
                   }
                 }
               }
             } catch (parseErr) {
               console.error('❌ Error parsing InvoiceCreated logs:', parseErr);
             }
+
+            // Parse InvoicePaid events
+            try {
+              const paidLogs = parseEventLogs({
+                abi: InvoiceRegistryABI,
+                logs: rawLogs,
+                eventName: 'InvoicePaid',
+              });
+              console.log('✅ Parsed InvoicePaid logs:', paidLogs.length);
+
+              for (const log of paidLogs) {
+                const decoded = log.args as any;
+                if (decoded.buyer?.toLowerCase() === address?.toLowerCase()) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'invoice_paid',
+                    `Invoice INV-${decoded.invoiceId?.toString().padStart(3, '0') || 'N/A'} Paid`,
+                    'Payment submitted',
+                    decoded.amount || null,
+                    'out',
+                    decoded.invoiceId
+                  );
+                  if (activity) {
+                    allActivities.push(activity);
+                    console.log('➕ Added InvoicePaid activity:', activity.title);
+                  }
+                }
+              }
+            } catch (parseErr) {
+              console.error('❌ Error parsing InvoicePaid logs:', parseErr);
+            }
           } catch (err) {
             console.error('❌ Error fetching InvoiceRegistry events:', err);
           }
         } else {
           console.warn('⚠️ InvoiceRegistry address not configured');
+        }
+
+        // Fetch AdvanceRequested events
+        if (contractAddresses.AdvanceEngine) {
+          try {
+            console.log('📋 Fetching AdvanceRequested events...');
+            const rawLogs = await publicClient.getLogs({
+              address: contractAddresses.AdvanceEngine as `0x${string}`,
+              fromBlock,
+              toBlock: currentBlock,
+            });
+            console.log('📋 Raw AdvanceEngine logs fetched:', rawLogs.length);
+
+            try {
+              const parsedLogs = parseEventLogs({
+                abi: AdvanceEngineABI,
+                logs: rawLogs,
+                eventName: 'AdvanceRequested',
+              });
+              console.log('✅ Parsed AdvanceRequested logs:', parsedLogs.length);
+
+              for (const log of parsedLogs) {
+                const decoded = log.args as any;
+                if (decoded.seller?.toLowerCase() === address?.toLowerCase()) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'advance_received',
+                    'Advance Received',
+                    `On invoice INV-${decoded.invoiceId?.toString().padStart(3, '0') || 'N/A'}`,
+                    decoded.advanceAmount || null,
+                    'in',
+                    decoded.invoiceId
+                  );
+                  if (activity) {
+                    allActivities.push(activity);
+                    console.log('➕ Added AdvanceRequested activity:', activity.title);
+                  }
+                }
+              }
+            } catch (parseErr) {
+              console.error('❌ Error parsing AdvanceRequested logs:', parseErr);
+            }
+
+            // Parse AdvanceRepaid events
+            try {
+              const repaidLogs = parseEventLogs({
+                abi: AdvanceEngineABI,
+                logs: rawLogs,
+                eventName: 'AdvanceRepaid',
+              });
+              console.log('✅ Parsed AdvanceRepaid logs:', repaidLogs.length);
+
+              for (const log of repaidLogs) {
+                const decoded = log.args as any;
+                if (decoded.seller?.toLowerCase() === address?.toLowerCase()) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'advance_repaid',
+                    'Advance Repaid',
+                    `Invoice INV-${decoded.invoiceId?.toString().padStart(3, '0') || 'N/A'} cleared`,
+                    decoded.repaymentAmount || null,
+                    'out',
+                    decoded.invoiceId
+                  );
+                  if (activity) {
+                    allActivities.push(activity);
+                    console.log('➕ Added AdvanceRepaid activity:', activity.title);
+                  }
+                }
+              }
+            } catch (parseErr) {
+              console.error('❌ Error parsing AdvanceRepaid logs:', parseErr);
+            }
+          } catch (err) {
+            console.error('❌ Error fetching AdvanceEngine events:', err);
+          }
+        }
+
+        // Fetch Vault Deposit/Withdraw events
+        if (contractAddresses.Vault) {
+          try {
+            console.log('📋 Fetching Vault events...');
+            const rawLogs = await publicClient.getLogs({
+              address: contractAddresses.Vault as `0x${string}`,
+              fromBlock,
+              toBlock: currentBlock,
+            });
+            console.log('📋 Raw Vault logs fetched:', rawLogs.length);
+
+            // Parse Deposit events
+            try {
+              const depositLogs = parseEventLogs({
+                abi: VaultABI,
+                logs: rawLogs,
+                eventName: 'Deposit',
+              });
+              console.log('✅ Parsed Vault Deposit logs:', depositLogs.length);
+
+              for (const log of depositLogs) {
+                const decoded = log.args as any;
+                if (decoded.user?.toLowerCase() === address?.toLowerCase()) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'vault_deposit',
+                    'Vault Deposit',
+                    'Added liquidity to funding pool',
+                    decoded.amount || null,
+                    'out',
+                    undefined
+                  );
+                  if (activity) {
+                    allActivities.push(activity);
+                    console.log('➕ Added Vault Deposit activity');
+                  }
+                }
+              }
+            } catch (parseErr) {
+              console.error('❌ Error parsing Vault Deposit logs:', parseErr);
+            }
+
+            // Parse Withdraw events
+            try {
+              const withdrawLogs = parseEventLogs({
+                abi: VaultABI,
+                logs: rawLogs,
+                eventName: 'Withdraw',
+              });
+              console.log('✅ Parsed Vault Withdraw logs:', withdrawLogs.length);
+
+              for (const log of withdrawLogs) {
+                const decoded = log.args as any;
+                if (decoded.user?.toLowerCase() === address?.toLowerCase()) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'vault_withdraw',
+                    'Vault Withdrawal',
+                    'Withdrew liquidity from funding pool',
+                    decoded.amount || null,
+                    'in',
+                    undefined
+                  );
+                  if (activity) {
+                    allActivities.push(activity);
+                    console.log('➕ Added Vault Withdraw activity');
+                  }
+                }
+              }
+            } catch (parseErr) {
+              console.error('❌ Error parsing Vault Withdraw logs:', parseErr);
+            }
+          } catch (err) {
+            console.error('❌ Error fetching Vault events:', err);
+          }
+        }
+
+        // Fetch Staking Stake/Unstake events
+        if (contractAddresses.Staking) {
+          try {
+            console.log('📋 Fetching Staking events...');
+            const rawLogs = await publicClient.getLogs({
+              address: contractAddresses.Staking as `0x${string}`,
+              fromBlock,
+              toBlock: currentBlock,
+            });
+            console.log('📋 Raw Staking logs fetched:', rawLogs.length);
+
+            // Parse Stake events
+            try {
+              const stakeLogs = parseEventLogs({
+                abi: StakingABI,
+                logs: rawLogs,
+                eventName: 'Stake',
+              });
+              console.log('✅ Parsed Stake logs:', stakeLogs.length);
+
+              for (const log of stakeLogs) {
+                const decoded = log.args as any;
+                if (decoded.user?.toLowerCase() === address?.toLowerCase()) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'stake',
+                    'Staked USMT+',
+                    'Staked USMT+ to earn yield',
+                    decoded.usmtAmount || null,
+                    'out',
+                    undefined
+                  );
+                  if (activity) {
+                    allActivities.push(activity);
+                    console.log('➕ Added Stake activity');
+                  }
+                }
+              }
+            } catch (parseErr) {
+              console.error('❌ Error parsing Stake logs:', parseErr);
+            }
+
+            // Parse Unstake events
+            try {
+              const unstakeLogs = parseEventLogs({
+                abi: StakingABI,
+                logs: rawLogs,
+                eventName: 'Unstake',
+              });
+              console.log('✅ Parsed Unstake logs:', unstakeLogs.length);
+
+              for (const log of unstakeLogs) {
+                const decoded = log.args as any;
+                if (decoded.user?.toLowerCase() === address?.toLowerCase()) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'unstake',
+                    'Unstaked USMT+',
+                    'Unstaked USMT+ from staking',
+                    decoded.usmtAmount || null,
+                    'in',
+                    undefined
+                  );
+                  if (activity) {
+                    allActivities.push(activity);
+                    console.log('➕ Added Unstake activity');
+                  }
+                }
+              }
+            } catch (parseErr) {
+              console.error('❌ Error parsing Unstake logs:', parseErr);
+            }
+          } catch (err) {
+            console.error('❌ Error fetching Staking events:', err);
+          }
         }
 
 
