@@ -147,24 +147,27 @@ export default function CreateInvoice() {
   }, [hash, isSuccess, receipt, formData.buyerName, formData.buyerEmail])
 
 
-  // Watch for errors
+  // Watch for errors - only show if transaction actually failed (not if it succeeded)
   useEffect(() => {
-    if (error) {
-      
+    if (error && !isSuccess && !receipt) {
+      // Don't show error if transaction succeeded (isSuccess or receipt exists)
       // Check if it's an "already known" type error (transaction might have succeeded)
       const isAlreadyKnown = error.message?.includes('already known') || 
-                            error.message?.includes('already be submitted')
+                            error.message?.includes('already be submitted') ||
+                            error.message?.includes('nonce too low')
       
-      if (isAlreadyKnown) {
+      if (isAlreadyKnown && hash) {
+        // If we have a hash, transaction was likely submitted successfully
+        // Don't show error, just log it
+        console.log('Transaction may have been submitted despite error:', error.message)
+        return
+      } else if (isAlreadyKnown && !hash) {
         toast.warning("Transaction may already be submitted", {
-          description: error.message || "Please check your wallet transactions. The invoice might have been created successfully.",
+          description: "Please check your wallet transactions. The invoice might have been created successfully.",
           duration: 8000,
-          action: hash ? {
-            label: "View Transaction",
-            onClick: () => window.open(`https://explorer.testnet.mantle.xyz/tx/${hash}`, '_blank')
-          } : undefined,
         })
       } else {
+        // Only show error if transaction definitely failed (no hash, no success)
         toast.error("❌ Failed to create invoice", {
           description: (
             <div className="space-y-1">
@@ -186,7 +189,7 @@ export default function CreateInvoice() {
       }
       setIsSubmitting(false)
     }
-  }, [error, hash])
+  }, [error, hash, isSuccess, receipt])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
