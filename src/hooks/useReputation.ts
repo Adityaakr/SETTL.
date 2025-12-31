@@ -294,8 +294,21 @@ export function useReputation(sellerAddress?: string) {
   });
 
   // Use frontend score if available, otherwise fall back to chain score
-  const displayScore = frontendScore !== null ? frontendScore : (score ? Number(score) : 0);
-  const displayTier = frontendTier !== null ? frontendTier : ((tier as ReputationTier | undefined) ?? 0);
+  let displayScore = frontendScore !== null ? frontendScore : (score ? Number(score) : 0);
+  let displayTier = frontendTier !== null ? frontendTier : ((tier as ReputationTier | undefined) ?? 0);
+
+  // If chain score is available but seems low (450 default or 510), and we have stats showing cleared invoices,
+  // calculate expected score: 450 (base) + (invoicesCleared × 20)
+  if (stats && stats.invoicesCleared > 0n) {
+    const expectedScoreFromCleared = 450 + (Number(stats.invoicesCleared) * 20);
+    // Use the higher of: on-chain score or calculated score from cleared invoices
+    // This ensures we show the correct score even if on-chain hasn't updated yet
+    if (expectedScoreFromCleared > displayScore) {
+      console.log('🎯 Using calculated score from cleared invoices:', expectedScoreFromCleared, '(on-chain:', displayScore, ', cleared:', stats.invoicesCleared.toString(), ')');
+      displayScore = Math.min(1000, expectedScoreFromCleared); // Cap at 1000
+      displayTier = calculateTier(displayScore);
+    }
+  }
 
   return {
     score: displayScore,
