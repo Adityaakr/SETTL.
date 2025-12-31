@@ -3,7 +3,7 @@ import { useWatchContractEvent, usePublicClient } from 'wagmi';
 import { usePrivyAccount } from './usePrivyAccount';
 import { contractAddresses } from '@/lib/contracts';
 import { InvoiceRegistryABI, AdvanceEngineABI, VaultABI, SettlementRouterABI, StakingABI } from '@/lib/abis';
-import { formatUnits, formatEther } from 'viem';
+import { formatUnits, formatEther, parseEventLogs } from 'viem';
 
 export interface Activity {
   id: string;
@@ -289,16 +289,154 @@ export function useActivity() {
     },
   });
 
-  // Load past events on mount (optional - can be expensive, so we'll do it sparingly)
+  // Load past events on mount
   useEffect(() => {
     if (!publicClient || !address) {
       setIsLoading(false);
       return;
     }
 
-    // For now, we'll rely on live events
-    // In production, you might want to fetch past events from a block explorer or indexer
-    setIsLoading(false);
+    const fetchPastEvents = async () => {
+      try {
+        setIsLoading(true);
+        const currentBlock = await publicClient.getBlockNumber();
+        // Fetch events from last ~30k blocks (roughly last few days on Mantle)
+        // Reduced to improve performance
+        const BLOCKS_TO_SEARCH = 30000n;
+        const fromBlock = currentBlock > BLOCKS_TO_SEARCH ? currentBlock - BLOCKS_TO_SEARCH : 0n;
+        
+        const allActivities: Activity[] = [];
+
+        // Helper to get block timestamp
+        const getBlockTimestamp = async (blockNumber: bigint) => {
+          try {
+            const block = await publicClient.getBlock({ blockNumber });
+            return Number(block.timestamp) * 1000; // Convert to milliseconds
+          } catch {
+            return Date.now(); // Fallback to current time
+          }
+        };
+
+        // Helper to create activity from event log
+        const createActivityFromLog = async (
+          log: any,
+          type: Activity['type'],
+          title: string,
+          description: string,
+          amount: bigint | null,
+          direction: Activity['direction'],
+          invoiceId?: bigint
+        ): Promise<Activity | null> => {
+          const timestamp = await getBlockTimestamp(log.blockNumber || 0n);
+          const activityId = invoiceId 
+            ? `${type}-${invoiceId}-${log.transactionHash}-${log.logIndex || 0}`
+            : `${type}-${log.transactionHash}-${log.logIndex || 0}`;
+          
+          return {
+            id: activityId,
+            type,
+            title,
+            description,
+            amount: amount ? parseFloat(formatUnits(amount, 6)) : null,
+            direction,
+            timestamp,
+            txHash: log.transactionHash,
+            blockNumber: log.blockNumber || 0n,
+          };
+        };
+
+        // Fetch InvoiceSettled events (most important - shows cleared invoices)
+        if (contractAddresses.SettlementRouter) {
+          try {
+            const rawLogs = await publicClient.getLogs({
+              address: contractAddresses.SettlementRouter as `0x${string}`,
+              fromBlock,
+              toBlock: currentBlock,
+            });
+
+            try {
+              const parsedLogs = parseEventLogs({
+                abi: SettlementRouterABI,
+                logs: rawLogs,
+                eventName: 'InvoiceSettled',
+              });
+
+              for (const log of parsedLogs) {
+                const decoded = log.args as any;
+                if (decoded.seller?.toLowerCase() === address?.toLowerCase()) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'invoice_cleared',
+                    `Invoice INV-${decoded.invoiceId?.toString().padStart(3, '0') || 'N/A'} Cleared`,
+                    'Payment received and settled',
+                    decoded.sellerAmount || null,
+                    'in',
+                    decoded.invoiceId
+                  );
+                  if (activity) allActivities.push(activity);
+                }
+              }
+            } catch (parseErr) {
+              console.error('Error parsing InvoiceSettled logs:', parseErr);
+            }
+          } catch (err) {
+            console.error('Error fetching SettlementRouter events:', err);
+          }
+        }
+
+        // Fetch InvoiceCreated events
+        if (contractAddresses.InvoiceRegistry) {
+          try {
+            const rawLogs = await publicClient.getLogs({
+              address: contractAddresses.InvoiceRegistry as `0x${string}`,
+              fromBlock,
+              toBlock: currentBlock,
+            });
+
+            try {
+              const parsedLogs = parseEventLogs({
+                abi: InvoiceRegistryABI,
+                logs: rawLogs,
+                eventName: 'InvoiceCreated',
+              });
+
+              for (const log of parsedLogs) {
+                const decoded = log.args as any;
+                if (decoded.seller?.toLowerCase() === address?.toLowerCase() || decoded.buyer?.toLowerCase() === address?.toLowerCase()) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'invoice_created',
+                    `Invoice INV-${decoded.invoiceId?.toString().padStart(3, '0') || 'N/A'} Created`,
+                    decoded.seller?.toLowerCase() === address?.toLowerCase()
+                      ? `Issued to ${decoded.buyer?.slice(0, 6)}...${decoded.buyer?.slice(-4)}`
+                      : `Received from ${decoded.seller?.slice(0, 6)}...${decoded.seller?.slice(-4)}`,
+                    decoded.amount || null,
+                    null,
+                    decoded.invoiceId
+                  );
+                  if (activity) allActivities.push(activity);
+                }
+              }
+            } catch (parseErr) {
+              console.error('Error parsing InvoiceCreated logs:', parseErr);
+            }
+          } catch (err) {
+            console.error('Error fetching InvoiceRegistry events:', err);
+          }
+        }
+
+
+        // Sort by timestamp (newest first) and set activities
+        const sortedActivities = allActivities.sort((a, b) => b.timestamp - a.timestamp);
+        setActivities(sortedActivities);
+      } catch (err) {
+        console.error('Error fetching past events:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPastEvents();
   }, [publicClient, address]);
 
   return {
