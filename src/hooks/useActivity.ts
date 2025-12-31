@@ -422,8 +422,8 @@ export function useActivity() {
               console.log('✅ Parsed InvoiceCreated logs:', createdLogs.length);
 
               for (const log of createdLogs) {
-                const decoded = log.args as any;
-                if (decoded.seller?.toLowerCase() === address?.toLowerCase() || decoded.buyer?.toLowerCase() === address?.toLowerCase()) {
+                const decoded = (log as any).args;
+                if (decoded?.seller?.toLowerCase() === address?.toLowerCase() || decoded?.buyer?.toLowerCase() === address?.toLowerCase()) {
                   const activity = await createActivityFromLog(
                     { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
                     'invoice_created',
@@ -455,8 +455,8 @@ export function useActivity() {
               console.log('✅ Parsed InvoicePaid logs:', paidLogs.length);
 
               for (const log of paidLogs) {
-                const decoded = log.args as any;
-                if (decoded.buyer?.toLowerCase() === address?.toLowerCase()) {
+                const decoded = (log as any).args;
+                if (decoded?.buyer?.toLowerCase() === address?.toLowerCase()) {
                   const activity = await createActivityFromLog(
                     { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
                     'invoice_paid',
@@ -502,8 +502,8 @@ export function useActivity() {
               console.log('✅ Parsed AdvanceRequested logs:', parsedLogs.length);
 
               for (const log of parsedLogs) {
-                const decoded = log.args as any;
-                if (decoded.seller?.toLowerCase() === address?.toLowerCase()) {
+                const decoded = (log as any).args;
+                if (decoded?.seller?.toLowerCase() === address?.toLowerCase()) {
                   const activity = await createActivityFromLog(
                     { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
                     'advance_received',
@@ -533,8 +533,8 @@ export function useActivity() {
               console.log('✅ Parsed AdvanceRepaid logs:', repaidLogs.length);
 
               for (const log of repaidLogs) {
-                const decoded = log.args as any;
-                if (decoded.seller?.toLowerCase() === address?.toLowerCase()) {
+                const decoded = (log as any).args;
+                if (decoded?.seller?.toLowerCase() === address?.toLowerCase()) {
                   const activity = await createActivityFromLog(
                     { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
                     'advance_repaid',
@@ -579,8 +579,8 @@ export function useActivity() {
               console.log('✅ Parsed Vault Deposit logs:', depositLogs.length);
 
               for (const log of depositLogs) {
-                const decoded = log.args as any;
-                if (decoded.user?.toLowerCase() === address?.toLowerCase()) {
+                const decoded = (log as any).args;
+                if (decoded?.user?.toLowerCase() === address?.toLowerCase()) {
                   const activity = await createActivityFromLog(
                     { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
                     'vault_deposit',
@@ -610,8 +610,8 @@ export function useActivity() {
               console.log('✅ Parsed Vault Withdraw logs:', withdrawLogs.length);
 
               for (const log of withdrawLogs) {
-                const decoded = log.args as any;
-                if (decoded.user?.toLowerCase() === address?.toLowerCase()) {
+                const decoded = (log as any).args;
+                if (decoded?.user?.toLowerCase() === address?.toLowerCase()) {
                   const activity = await createActivityFromLog(
                     { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
                     'vault_withdraw',
@@ -656,8 +656,8 @@ export function useActivity() {
               console.log('✅ Parsed Stake logs:', stakeLogs.length);
 
               for (const log of stakeLogs) {
-                const decoded = log.args as any;
-                if (decoded.user?.toLowerCase() === address?.toLowerCase()) {
+                const decoded = (log as any).args;
+                if (decoded?.user?.toLowerCase() === address?.toLowerCase()) {
                   const activity = await createActivityFromLog(
                     { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
                     'stake',
@@ -687,8 +687,8 @@ export function useActivity() {
               console.log('✅ Parsed Unstake logs:', unstakeLogs.length);
 
               for (const log of unstakeLogs) {
-                const decoded = log.args as any;
-                if (decoded.user?.toLowerCase() === address?.toLowerCase()) {
+                const decoded = (log as any).args;
+                if (decoded?.user?.toLowerCase() === address?.toLowerCase()) {
                   const activity = await createActivityFromLog(
                     { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
                     'unstake',
