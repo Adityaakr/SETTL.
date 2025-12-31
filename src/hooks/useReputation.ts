@@ -209,8 +209,8 @@ export function useReputation(sellerAddress?: string) {
     abi: ReputationABI,
     eventName: 'ReputationUpdated',
     onLogs(logs) {
-      logs.forEach((log) => {
-        const [eventSeller, newScore, newTier, invoiceVolume] = log.args as any;
+      logs.forEach((log: any) => {
+        const [eventSeller, newScore, newTier, invoiceVolume] = log.args || [];
         if (eventSeller?.toLowerCase() === seller?.toLowerCase()) {
           console.log('🎯 Reputation updated on-chain!', {
             seller: eventSeller,
@@ -239,9 +239,9 @@ export function useReputation(sellerAddress?: string) {
     abi: InvoiceRegistryABI,
     eventName: 'InvoiceCleared',
     onLogs(logs) {
-      logs.forEach((log) => {
+      logs.forEach((log: any) => {
         const invoiceId = log.args?.invoiceId?.toString();
-        const { seller: eventSeller } = log.args as any;
+        const { seller: eventSeller } = log.args || {};
         
         if (eventSeller?.toLowerCase() === seller?.toLowerCase() && invoiceId) {
           console.log('📄 Invoice cleared detected:', {
@@ -272,9 +272,9 @@ export function useReputation(sellerAddress?: string) {
     abi: SettlementRouterABI,
     eventName: 'InvoiceSettled',
     onLogs(logs) {
-      logs.forEach((log) => {
+      logs.forEach((log: any) => {
         const invoiceId = log.args?.invoiceId?.toString();
-        const { seller: eventSeller, invoiceAmount } = log.args as any;
+        const { seller: eventSeller, invoiceAmount } = log.args || {};
         
         if (eventSeller?.toLowerCase() === seller?.toLowerCase() && invoiceId && invoiceAmount) {
           console.log('💰 Invoice settled with amount:', {
