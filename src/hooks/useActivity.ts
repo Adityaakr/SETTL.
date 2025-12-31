@@ -4,6 +4,7 @@ import { usePrivyAccount } from './usePrivyAccount';
 import { contractAddresses } from '@/lib/contracts';
 import { InvoiceRegistryABI, AdvanceEngineABI, VaultABI, SettlementRouterABI, StakingABI } from '@/lib/abis';
 import { formatUnits, formatEther, parseEventLogs } from 'viem';
+import { useSellerInvoicesWithData, Invoice } from './useInvoice';
 
 export interface Activity {
   id: string;
@@ -20,6 +21,7 @@ export interface Activity {
 export function useActivity() {
   const { address } = usePrivyAccount();
   const publicClient = usePublicClient({ chainId: 5003 });
+  const { invoices } = useSellerInvoicesWithData(address);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -452,7 +454,7 @@ export function useActivity() {
 
         // Sort by timestamp (newest first) and set activities
         const sortedActivities = allActivities.sort((a, b) => b.timestamp - a.timestamp);
-        console.log('✅ Total activities found:', sortedActivities.length);
+        console.log('✅ Total activities from events:', sortedActivities.length);
         setActivities(sortedActivities);
       } catch (err) {
         console.error('❌ Error fetching past events:', err);
@@ -463,6 +465,67 @@ export function useActivity() {
 
     fetchPastEvents();
   }, [publicClient, address]);
+
+  // Also create activities from invoice data (fallback/supplement)
+  useEffect(() => {
+    if (!invoices || invoices.length === 0) return;
+
+    console.log('📄 Creating activities from invoices:', invoices.length);
+    const invoiceActivities: Activity[] = [];
+
+    invoices.forEach((invoice: Invoice) => {
+      // Add invoice created activity
+      if (invoice.createdAt && invoice.createdAt > 0n) {
+        const createdAt = Number(invoice.createdAt) * 1000; // Convert to milliseconds
+        invoiceActivities.push({
+          id: `invoice-created-${invoice.invoiceId}-from-data`,
+          type: 'invoice_created',
+          title: `Invoice INV-${invoice.invoiceId.toString().padStart(3, '0')} Created`,
+          description: invoice.seller?.toLowerCase() === address?.toLowerCase()
+            ? `Issued to ${invoice.buyer?.slice(0, 6)}...${invoice.buyer?.slice(-4)}`
+            : `Received from ${invoice.seller?.slice(0, 6)}...${invoice.seller?.slice(-4)}`,
+          amount: parseFloat(formatUnits(invoice.amount || 0n, 6)),
+          direction: null,
+          timestamp: createdAt,
+          txHash: '0x0000000000000000000000000000000000000000000000000000000000000000', // Placeholder
+          blockNumber: 0n,
+        });
+      }
+
+      // Add invoice cleared activity if cleared
+      if (invoice.status === 3 && invoice.clearedAt && invoice.clearedAt > 0n) {
+        const clearedAt = Number(invoice.clearedAt) * 1000; // Convert to milliseconds
+        invoiceActivities.push({
+          id: `invoice-cleared-${invoice.invoiceId}-from-data`,
+          type: 'invoice_cleared',
+          title: `Invoice INV-${invoice.invoiceId.toString().padStart(3, '0')} Cleared`,
+          description: 'Payment received and settled',
+          amount: parseFloat(formatUnits(invoice.amount || 0n, 6)),
+          direction: 'in',
+          timestamp: clearedAt,
+          txHash: '0x0000000000000000000000000000000000000000000000000000000000000000', // Placeholder
+          blockNumber: 0n,
+        });
+      }
+    });
+
+    // Merge with existing activities, avoiding duplicates
+    setActivities((prev) => {
+      const merged = [...prev];
+      invoiceActivities.forEach((newActivity) => {
+        const exists = merged.some((a) => 
+          a.id === newActivity.id || 
+          (a.type === newActivity.type && a.title === newActivity.title)
+        );
+        if (!exists) {
+          merged.push(newActivity);
+        }
+      });
+      // Sort by timestamp (newest first)
+      return merged.sort((a, b) => b.timestamp - a.timestamp);
+    });
+    console.log('✅ Added', invoiceActivities.length, 'activities from invoice data');
+  }, [invoices, address]);
 
   return {
     activities,
