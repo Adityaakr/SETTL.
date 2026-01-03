@@ -59,13 +59,13 @@ export default function Landing() {
             </div>
             
             <h1 className="mb-6 text-6xl font-bold leading-tight tracking-tight md:text-8xl lg:text-8xl">
-              Settle your business
+              Get paid instantly. Finance tomorrow's
               <br />
-              <span className="gradient-text"> on-chain, instantly.</span>
+              <span className="gradient-text"> cashflow today.</span>
             </h1>
             
             <p className="mx-auto mb-10 max-w-2xl text-xl text-muted-foreground md:text-2xl">
-             SETTL turns receivables into RealFi—Stripe-like invoice links + DeFi liquidity. Get paid in stablecoins, unlock instant financing against cashflows, and build on-chain reputation on Mantle.
+              Stripe for receivables: tokenized invoice links → instant stablecoin settlement with built-in financing. Buyer pays once, advances auto-repays, seller settles instantly—building zk-reputation and higher limits over time.
             </p>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -107,7 +107,9 @@ export default function Landing() {
             Everything you need to scale your global business
             </h2>
             <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-              SETTL  removes the friction from B2B payments combines Stripe-like UX with DeFi innovation. Every invoice becomes an, ERC721 NFT enabling secondary markets, DeFi composability, and instant financing.
+            SETTL eliminates B2B payment friction with Stripe-like UX and DeFi rails. 
+Every invoice becomes a tokenized asset—instantly settleable, financeable, 
+and tradeable on secondary markets.
             </p>
           </div>
 
@@ -146,7 +148,7 @@ export default function Landing() {
             />
             <FeatureCard
               icon={PieChart}
-              title="LP Vault Transparency"
+              title="Funding Pool"
               description="Deposit liquidity, see utilization/APR, and get repaid automatically as invoices clear."
               delay={0.5}
             />
