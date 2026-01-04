@@ -374,7 +374,7 @@ export default function CreateInvoice() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {/* Buyer details */}
         <div className="rounded-xl border border-border bg-card p-6 shadow-md">
           <h2 className="mb-4 text-lg font-semibold">Buyer Details</h2>
@@ -426,67 +426,89 @@ export default function CreateInvoice() {
         </div>
 
         {/* Line items */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-md">
+        <div className="rounded-xl border border-border bg-card p-4 md:p-6 shadow-md">
           <h2 className="mb-4 text-lg font-semibold">Line Items</h2>
-          <div className="space-y-4">
+          <div className="space-y-4 md:space-y-4">
             {lineItems.map((item, index) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                className="grid gap-4 md:grid-cols-[1fr_100px_120px_40px] items-end"
+                className="relative rounded-lg border border-border/50 bg-secondary/30 p-4 md:border-0 md:bg-transparent md:p-0"
               >
-                <div className="space-y-2">
-                  <Label htmlFor={`desc-${item.id}`}>
-                    {index === 0 && <><FileText className="mr-2 inline h-4 w-4" />Description</>}
-                  </Label>
-                  <Input
-                    id={`desc-${item.id}`}
-                    placeholder="Service or product"
-                    value={item.description}
-                    onChange={(e) => updateLineItem(item.id, "description", e.target.value)}
-                    required
-                  />
+                {/* Grid layout */}
+                <div className="grid gap-4 md:grid-cols-[1fr_100px_120px_40px] items-end">
+                  <div className="space-y-2">
+                    <Label htmlFor={`desc-${item.id}`} className="text-sm">
+                      <FileText className="mr-2 inline h-4 w-4" />
+                      Description
+                    </Label>
+                    <Input
+                      id={`desc-${item.id}`}
+                      placeholder="Service or product"
+                      value={item.description}
+                      onChange={(e) => updateLineItem(item.id, "description", e.target.value)}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`qty-${item.id}`} className="text-sm">
+                      Qty
+                    </Label>
+                    <Input
+                      id={`qty-${item.id}`}
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateLineItem(item.id, "quantity", parseInt(e.target.value) || 1)}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`rate-${item.id}`} className="text-sm">
+                      <DollarSign className="mr-2 inline h-4 w-4" />
+                      $ Rate
+                    </Label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        id={`rate-${item.id}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={item.rate || ""}
+                        onChange={(e) => updateLineItem(item.id, "rate", parseFloat(e.target.value) || 0)}
+                        className="flex-1"
+                        required
+                      />
+                      {/* Delete button - mobile: same line as rate, desktop: grid item */}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeLineItem(item.id)}
+                        disabled={lineItems.length === 1}
+                        className="flex-shrink-0 md:hidden text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  {/* Delete button - desktop: grid item */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeLineItem(item.id)}
+                    disabled={lineItems.length === 1}
+                    className="hidden md:flex text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`qty-${item.id}`}>
-                    {index === 0 && "Qty"}
-                  </Label>
-                  <Input
-                    id={`qty-${item.id}`}
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateLineItem(item.id, "quantity", parseInt(e.target.value) || 1)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`rate-${item.id}`}>
-                    {index === 0 && <><DollarSign className="mr-2 inline h-4 w-4" />Rate</>}
-                  </Label>
-                  <Input
-                    id={`rate-${item.id}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={item.rate || ""}
-                    onChange={(e) => updateLineItem(item.id, "rate", parseFloat(e.target.value) || 0)}
-                    required
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeLineItem(item.id)}
-                  disabled={lineItems.length === 1}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
               </motion.div>
             ))}
           </div>
@@ -495,7 +517,7 @@ export default function CreateInvoice() {
             type="button"
             variant="outline"
             size="sm"
-            className="mt-4"
+            className="mt-4 w-full md:w-auto"
             onClick={addLineItem}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -504,19 +526,19 @@ export default function CreateInvoice() {
 
           {/* Total */}
           <div className="mt-6 flex justify-end border-t border-border pt-4">
-            <div className="text-right">
+            <div className="text-right w-full md:w-auto">
               <p className="text-sm text-muted-foreground">Total Amount</p>
-              <p className="text-3xl font-bold number-display">
+              <p className="text-2xl md:text-3xl font-bold number-display">
                 ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                <span className="ml-2 text-lg font-normal text-muted-foreground">USDC</span>
+                <span className="ml-2 text-base md:text-lg font-normal text-muted-foreground">USDC</span>
               </p>
             </div>
           </div>
         </div>
 
         {/* Payment details */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-md">
-          <h2 className="mb-4 text-lg font-semibold">Payment Details</h2>
+        <div className="rounded-xl border border-border bg-card p-4 md:p-6 shadow-md">
+          <h2 className="mb-3 text-lg font-semibold">Payment Details</h2>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="dueDate">
@@ -541,42 +563,47 @@ export default function CreateInvoice() {
               />
             </div>
           </div>
-          <div className="mt-4 space-y-2">
+          <div className="mt-3 space-y-2">
             <Label htmlFor="memo">Memo (optional)</Label>
             <Textarea
               id="memo"
               placeholder="Additional notes for the buyer..."
               value={formData.memo}
               onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
-              rows={3}
+              rows={2}
+              className="resize-none"
             />
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-4">
-          <Button variant="outline" type="button" asChild>
-            <Link to="/app/invoices">Cancel</Link>
-          </Button>
-          <Button 
-            type="submit" 
-            variant="hero"
-            disabled={isPending || isConfirming || isSubmitting || totalAmount === 0 || !address}
-          >
-            {isPending || isConfirming ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isPending ? "Waiting for wallet..." : "Confirming..."}
-              </>
-            ) : (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                Create Invoice On-Chain
-              </>
-            )}
-          </Button>
+        <div className="pt-2 border-t border-border">
+          <div className="flex flex-row justify-end gap-3">
+            <Button variant="outline" type="button" asChild size="sm" className="flex-shrink-0">
+              <Link to="/app/invoices">Cancel</Link>
+            </Button>
+            <Button 
+              type="submit" 
+              variant="hero"
+              size="sm"
+              disabled={isPending || isConfirming || isSubmitting || totalAmount === 0 || !address}
+              className="flex-shrink-0"
+            >
+              {isPending || isConfirming ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isPending ? "Waiting..." : "Confirming..."}
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Create Invoice On-Chain
+                </>
+              )}
+            </Button>
+          </div>
           {!address && (
-            <p className="text-sm text-muted-foreground text-right">
+            <p className="text-xs text-muted-foreground text-right mt-2">
               Please connect your wallet to create an invoice
             </p>
           )}
