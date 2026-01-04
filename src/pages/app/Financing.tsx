@@ -706,9 +706,9 @@ function EligibleInvoiceCard({
       transition={{ delay: index * 0.1 }}
       className="rounded-xl border border-border p-5 transition-all hover:border-primary/30 hover:shadow-md"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
             <Link 
               to={`/app/invoices/${invoice.invoiceId}`}
               className="font-semibold text-primary hover:underline"
@@ -724,7 +724,7 @@ function EligibleInvoiceCard({
               </>
             )}
             <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground font-mono text-sm">{invoice.buyer}</span>
+            <span className="text-muted-foreground font-mono text-sm">{invoice.buyer.slice(0, 6)}...{invoice.buyer.slice(-4)}</span>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 text-sm md:grid-cols-4">
             <div>
@@ -745,48 +745,53 @@ function EligibleInvoiceCard({
             </div>
           </div>
         </div>
-        {canRequestAdvance ? (
-          <Button 
-            variant="hero" 
-            onClick={handleRequestAdvance}
-            disabled={isLoading || !hasEnoughLiquidity || !isInvoiceIssued}
-            title={
-              !hasEnoughLiquidity 
-                ? `Insufficient vault liquidity. Available: $${availableLiquidity.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                : !isInvoiceIssued 
-                ? "Invoice status has changed. This invoice is no longer eligible for advance."
-                : undefined
-            }
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : !hasEnoughLiquidity ? (
-              <>
-                <Zap className="mr-2 h-4 w-4" />
-                Insufficient Liquidity
-              </>
-            ) : (
-              <>
-                <Zap className="mr-2 h-4 w-4" />
-                Request Advance
-              </>
-            )}
-          </Button>
-        ) : (
-          <Button 
-            variant="outline" 
-            asChild
-            disabled
-          >
-            <Link to={`/app/invoices/${invoice.invoiceId}`}>
-              <Eye className="mr-2 h-4 w-4" />
-              View Invoice
-            </Link>
-          </Button>
-        )}
+        <div className="flex-shrink-0">
+          {canRequestAdvance ? (
+            <Button 
+              variant="hero"
+              size="default"
+              className="w-full sm:w-auto whitespace-nowrap"
+              onClick={handleRequestAdvance}
+              disabled={isLoading || !hasEnoughLiquidity || !isInvoiceIssued}
+              title={
+                !hasEnoughLiquidity 
+                  ? `Insufficient vault liquidity. Available: $${availableLiquidity.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                  : !isInvoiceIssued 
+                  ? "Invoice status has changed. This invoice is no longer eligible for advance."
+                  : undefined
+              }
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : !hasEnoughLiquidity ? (
+                <>
+                  <Zap className="mr-2 h-4 w-4" />
+                  Insufficient Liquidity
+                </>
+              ) : (
+                <>
+                  <Zap className="mr-2 h-4 w-4" />
+                  Request Advance
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button 
+              variant="outline"
+              size="default"
+              className="w-full sm:w-auto whitespace-nowrap"
+              asChild
+            >
+              <Link to={`/app/invoices/${invoice.invoiceId}`}>
+                <Eye className="mr-2 h-4 w-4" />
+                View Invoice
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
     </motion.div>
   )

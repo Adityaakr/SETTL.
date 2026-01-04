@@ -13,7 +13,10 @@ import {
   ArrowUpLeft,
   Copy,
   ExternalLink,
-  Coins
+  Coins,
+  ChevronDown,
+  QrCode,
+  Download
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -36,16 +39,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useSellerInvoicesWithData, InvoiceStatus } from "@/hooks/useInvoice"
 import { useReputation } from "@/hooks/useReputation"
 import { useTokenBalance } from "@/hooks/useTokenBalance"
+import { useUSMTBalance } from "@/hooks/useUSMTBalance"
 import { usePrivyAccount } from "@/hooks/usePrivyAccount"
 import { useSendTransaction, useWallets } from "@privy-io/react-auth"
 import { useBalance, useWaitForTransactionReceipt } from "wagmi"
 import { contractAddresses } from "@/lib/contracts"
-import { DemoUSDCABI } from "@/lib/abis"
+import { DemoUSDCABI, USMTPlusABI } from "@/lib/abis"
 import { formatUnits, parseUnits, encodeFunctionData, isAddress } from "viem"
 import { toast } from "sonner"
+import { QRCodeSVG } from "qrcode.react"
 
 const STATUS_MAP: Record<InvoiceStatus, string> = {
   0: "issued",
@@ -71,7 +81,25 @@ export default function Dashboard() {
   const { invoices, isLoading: isLoadingInvoices, error: invoiceError } = useSellerInvoicesWithData()
   const { score, tierLabel, stats, isLoading: isLoadingReputation } = useReputation()
   const { balance: usdcBalance, isLoading: isLoadingBalance, error: balanceError } = useTokenBalance()
+  const { balance: usmtBalance, isLoading: isLoadingUSMT } = useUSMTBalance()
+  const { address } = usePrivyAccount()
+  const { data: mntBalance, isLoading: isLoadingMNT } = useBalance({
+    address: address as `0x${string}` | undefined,
+    query: {
+      enabled: !!address,
+    },
+  })
+
+  // Calculate unified balance (sum of USDC + USMT+ in USDC equivalent)
+  const unifiedBalance = useMemo(() => {
+    const usdc = usdcBalance || 0
+    const usmt = usmtBalance || 0
+    return usdc + usmt
+  }, [usdcBalance, usmtBalance])
+
+  const isLoadingAllBalances = isLoadingBalance || isLoadingUSMT || isLoadingMNT
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false)
+  const [receiveFundsDialogOpen, setReceiveFundsDialogOpen] = useState(false)
 
   // Get cleared invoices (status === 3) - MUST BE BEFORE score calculation
   const clearedInvoices = useMemo(() => {
@@ -220,38 +248,116 @@ export default function Dashboard() {
       className="space-y-8"
     >
       {/* Page header */}
-      <motion.div variants={item} className="flex items-center justify-between">
+      <motion.div variants={item} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Welcome back. Here's an overview of your activity.
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          {/* USDC Balance */}
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2">
-            <DollarSign className="h-4 w-4 text-primary" />
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Balance</p>
-              <p className="text-sm font-semibold">
-                {isLoadingBalance ? "..." : `${usdcBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`}
-              </p>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          {/* Unified Balance with Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-3 rounded-lg sm:rounded-xl border border-border/50 bg-card px-4 py-3 sm:px-5 sm:py-4 hover:bg-secondary/50 hover:border-border hover:shadow-md transition-all duration-200 cursor-pointer shadow-sm">
+                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 ring-2 ring-primary/10">
+                  <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Balance</p>
+                  <p className="text-lg sm:text-2xl font-bold tracking-tight mt-0.5">
+                    {isLoadingAllBalances ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading...
+                      </span>
+                    ) : (
+                      `$${unifiedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    )}
+                  </p>
+                </div>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-hover:rotate-180" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <div className="p-2">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 px-2">Token Balances</p>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between px-2 py-2 rounded-md hover:bg-secondary/50">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center">
+                        <DollarSign className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span className="text-sm font-medium">USDC</span>
+                    </div>
+                    <span className="text-sm font-semibold">
+                      {isLoadingBalance ? "..." : `${usdcBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-2 py-2 rounded-md hover:bg-secondary/50">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Coins className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <span className="text-sm font-medium">USMT+</span>
+                    </div>
+                    <span className="text-sm font-semibold">
+                      {isLoadingUSMT ? "..." : `${usmtBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-2 py-2 rounded-md hover:bg-secondary/50">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-purple-500/10 flex items-center justify-center">
+                        <Coins className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <span className="text-sm font-medium">MNT</span>
+                    </div>
+                    <span className="text-sm font-semibold">
+                      {isLoadingMNT ? "..." : `${mntBalance ? parseFloat(formatUnits(mntBalance.value, 18)).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : "0.0000"}`}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between px-2">
+                    <span className="text-xs font-semibold text-muted-foreground">Total (USDC + USMT+)</span>
+                    <span className="text-sm font-bold">
+                      {isLoadingAllBalances ? "..." : `$${unifiedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex gap-2 sm:gap-3">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setReceiveFundsDialogOpen(true)}
+                className="flex-1 sm:flex-none hover:bg-primary/5 hover:border-primary/20 transition-all"
+              >
+                <QrCode className="h-4 w-4 mr-2" />
+                Add Funds
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setWithdrawDialogOpen(true)}
+                disabled={isLoadingBalance}
+                className="flex-1 sm:flex-none hover:bg-primary/5 hover:border-primary/20 transition-all"
+              >
+                <ArrowUpLeft className="h-4 w-4 mr-2" />
+                Withdraw
+              </Button>
             </div>
+            <Button variant="hero" size="sm" asChild className="w-full sm:w-auto shadow-lg hover:shadow-xl">
+              <Link to="/app/invoices/new">
+                <Plus className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Create Invoice</span>
+                <span className="sm:hidden">Create</span>
+              </Link>
+            </Button>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => setWithdrawDialogOpen(true)}
-            disabled={isLoadingBalance}
-          >
-            <ArrowUpLeft className="h-4 w-4 mr-2" />
-            Withdraw
-          </Button>
-          <Button variant="hero" asChild>
-            <Link to="/app/invoices/new">
-              <Plus className="h-4 w-4" />
-              Create Invoice
-            </Link>
-          </Button>
         </div>
       </motion.div>
 
@@ -467,6 +573,13 @@ export default function Dashboard() {
         usdcBalance={usdcBalance}
         usdcRawBalance={0}
       />
+
+      {/* Receive Funds Dialog */}
+      <ReceiveFundsDialog
+        open={receiveFundsDialogOpen}
+        onOpenChange={setReceiveFundsDialogOpen}
+        address={address}
+      />
     </motion.div>
   )
 }
@@ -485,7 +598,7 @@ function WithdrawDialog({
   const { address } = usePrivyAccount()
   const { sendTransaction } = useSendTransaction()
   const { wallets } = useWallets()
-  const [tokenType, setTokenType] = useState<"USDC" | "MNT">("USDC")
+  const [tokenType, setTokenType] = useState<"USDC" | "MNT" | "USMT+">("USDC")
   const [withdrawAmount, setWithdrawAmount] = useState("")
   const [toAddress, setToAddress] = useState("")
   const [hash, setHash] = useState<string | null>(null)
@@ -508,6 +621,9 @@ function WithdrawDialog({
 
   const mntBalanceFormatted = mntBalance ? parseFloat(formatUnits(mntBalance.value, 18)) : 0
 
+  // Get USMT+ balance
+  const { balance: usmtBalance, isLoading: isLoadingUSMT } = useUSMTBalance()
+
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash: hash as `0x${string}` | undefined,
     chainId: 5003,
@@ -519,8 +635,8 @@ function WithdrawDialog({
   })
 
   // Get current balance based on token type
-  const currentBalance = tokenType === "USDC" ? usdcBalance : mntBalanceFormatted
-  const isLoadingBalance = tokenType === "USDC" ? false : isLoadingMNT
+  const currentBalance = tokenType === "USDC" ? usdcBalance : tokenType === "USMT+" ? usmtBalance : mntBalanceFormatted
+  const isLoadingBalance = tokenType === "USDC" ? false : tokenType === "USMT+" ? isLoadingUSMT : isLoadingMNT
 
   // Handle withdraw success
   useEffect(() => {
@@ -667,6 +783,36 @@ function WithdrawDialog({
         )
 
         setHash(result.hash)
+      } else if (tokenType === "USMT+") {
+        // Transfer USMT+ (ERC20 transfer)
+        if (!contractAddresses.USMTPlus) {
+          throw new Error("USMT+ contract address not configured")
+        }
+
+        const amountBigInt = parseUnits(withdrawAmount, 6) // USMT+ has 6 decimals
+        
+        const data = encodeFunctionData({
+          abi: USMTPlusABI,
+          functionName: "transfer",
+          args: [toAddress as `0x${string}`, amountBigInt],
+        })
+
+        const result = await sendTransaction(
+          {
+            to: contractAddresses.USMTPlus as `0x${string}`,
+            data: data,
+            value: 0n,
+            chainId: 5003,
+          },
+          {
+            address: embeddedWallet.address,
+            uiOptions: {
+              showWalletUIs: false,
+            },
+          }
+        )
+
+        setHash(result.hash)
       } else {
         // Transfer MNT (native token)
         const amountBigInt = parseUnits(withdrawAmount, 18) // MNT has 18 decimals
@@ -700,7 +846,7 @@ function WithdrawDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
          <DialogHeader>
            <DialogTitle>Withdraw Funds</DialogTitle>
            <DialogDescription>
@@ -712,7 +858,7 @@ function WithdrawDialog({
           {/* Token Type Selector */}
           <div className="space-y-2">
             <Label htmlFor="tokenType">Token Type</Label>
-            <Select value={tokenType} onValueChange={(value: "USDC" | "MNT") => {
+            <Select value={tokenType} onValueChange={(value: "USDC" | "MNT" | "USMT+") => {
               setTokenType(value)
               setWithdrawAmount("") // Reset amount when changing token type
             }}>
@@ -721,6 +867,7 @@ function WithdrawDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="USDC">USDC</SelectItem>
+                <SelectItem value="USMT+">USMT+</SelectItem>
                 <SelectItem value="MNT">MNT (Native)</SelectItem>
               </SelectContent>
             </Select>
@@ -817,6 +964,203 @@ function WithdrawDialog({
                </>
              )}
           </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ReceiveFundsDialog({
+  open,
+  onOpenChange,
+  address,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  address: string | undefined
+}) {
+  const qrCodeRef = useRef<HTMLDivElement>(null)
+
+  const copyAddress = () => {
+    if (!address) return
+    navigator.clipboard.writeText(address)
+    toast.success("Address copied to clipboard!")
+  }
+
+  const downloadQR = () => {
+    if (!qrCodeRef.current || !address) return
+
+    try {
+      // Get the SVG element from the QR code
+      const svgElement = qrCodeRef.current.querySelector('svg')
+      if (!svgElement) {
+        toast.error("QR code not found")
+        return
+      }
+
+      // Create a canvas to render the SVG with the logo
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        toast.error("Failed to create canvas")
+        return
+      }
+
+      const size = 512
+      canvas.width = size
+      canvas.height = size
+
+      // Create an image from the SVG
+      const svgData = new XMLSerializer().serializeToString(svgElement)
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+      const svgUrl = URL.createObjectURL(svgBlob)
+
+      const img = new Image()
+      img.onload = () => {
+        // Draw the QR code
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, size, size)
+        ctx.drawImage(img, 0, 0, size, size)
+
+        // Load and draw the SETTL logo in the center
+        const logoImg = new Image()
+        logoImg.crossOrigin = 'anonymous'
+        logoImg.onload = () => {
+          const logoSize = size * 0.15 // 15% of QR code size (reduced from 20%)
+          const logoX = (size - logoSize) / 2
+          const logoY = (size - logoSize) / 2
+          
+          // Draw white background circle for logo
+          ctx.fillStyle = '#ffffff'
+          ctx.beginPath()
+          ctx.arc(size / 2, size / 2, logoSize / 2 + 6, 0, 2 * Math.PI)
+          ctx.fill()
+          
+          // Draw the logo
+          ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize)
+
+          // Convert to blob and download
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const url = URL.createObjectURL(blob)
+              const link = document.createElement('a')
+              link.href = url
+              link.download = `settl-wallet-qr-${address.slice(0, 8)}.png`
+              document.body.appendChild(link)
+              link.click()
+              document.body.removeChild(link)
+              URL.revokeObjectURL(url)
+              toast.success("QR code downloaded!")
+            }
+          }, 'image/png')
+        }
+        logoImg.onerror = () => {
+          // If logo fails to load, just download QR without logo
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const url = URL.createObjectURL(blob)
+              const link = document.createElement('a')
+              link.href = url
+              link.download = `settl-wallet-qr-${address.slice(0, 8)}.png`
+              document.body.appendChild(link)
+              link.click()
+              document.body.removeChild(link)
+              URL.revokeObjectURL(url)
+              toast.success("QR code downloaded!")
+            }
+          }, 'image/png')
+        }
+        logoImg.src = '/set.png'
+      }
+      img.src = svgUrl
+    } catch (error) {
+      console.error('Error downloading QR code:', error)
+      toast.error("Failed to download QR code")
+    }
+  }
+
+  if (!address) {
+    return null
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Receive Funds</DialogTitle>
+          <DialogDescription>
+            Scan this QR code or copy your wallet address to receive funds
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6 py-4">
+          {/* QR Code */}
+          <div className="flex justify-center">
+            <div 
+              ref={qrCodeRef}
+              className="relative p-4 bg-white rounded-lg border border-border"
+            >
+              <QRCodeSVG
+                value={address}
+                size={256}
+                level="H"
+                includeMargin={false}
+                imageSettings={{
+                  src: '/set.png',
+                  height: 56,
+                  width: 96,
+                  excavate: true,
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Wallet Address */}
+          <div className="space-y-2">
+            <Label htmlFor="walletAddress">Wallet Address</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="walletAddress"
+                type="text"
+                value={address}
+                readOnly
+                className="font-mono text-sm"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={copyAddress}
+                title="Copy Address"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={copyAddress}
+              className="flex-1"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Address
+            </Button>
+            <Button
+              variant="default"
+              onClick={downloadQR}
+              className="flex-1"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download QR
+            </Button>
+          </div>
+
+          {/* Footer Text */}
+          <p className="text-xs text-center text-muted-foreground">
+            Share this QR code or address to receive funds on any supported chain
+          </p>
         </div>
       </DialogContent>
     </Dialog>

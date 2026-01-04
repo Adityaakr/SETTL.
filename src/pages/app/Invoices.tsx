@@ -230,7 +230,7 @@ export default function Invoices() {
       </div>
 
       {/* Invoice table */}
-      <div className="rounded-xl border border-border bg-card shadow-md overflow-hidden">
+      <div className="rounded-xl border border-border bg-card shadow-md overflow-x-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -265,7 +265,7 @@ export default function Invoices() {
             )}
           </div>
         ) : (
-        <table className="w-full">
+        <table className="w-full min-w-[800px]">
           <thead>
             <tr className="border-b border-border bg-secondary/50">
               <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">

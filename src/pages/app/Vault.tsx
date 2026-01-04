@@ -64,24 +64,24 @@ export default function Vault() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-8"
     >
-      {/* Header with buttons */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Funding Pool</h1>
-          <p className="text-muted-foreground mt-1">
-            Provide liquidity to the SETTL. financing engine and earn protocol fees.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2">
-            <LineChart className="h-4 w-4" />
-            Health Report
-          </Button>
-          <Button variant="hero" className="gap-2" onClick={() => setDepositSectionOpen(true)}>
-            <Plus className="h-4 w-4" />
-            + Deposit USDC
-          </Button>
-        </div>
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Funding Pool</h1>
+        <h2 className="text-lg text-muted-foreground mt-2 font-medium">
+          Provide liquidity to the SETTL. financing engine and earn protocol fees.
+        </h2>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center gap-3">
+        <Button variant="outline" className="gap-2">
+          <LineChart className="h-4 w-4" />
+          Health Report
+        </Button>
+        <Button variant="hero" className="gap-2" onClick={() => setDepositSectionOpen(true)}>
+          <Plus className="h-4 w-4" />
+          + Deposit USDC
+        </Button>
       </div>
 
       {/* Key Metrics Section */}

@@ -132,7 +132,7 @@ export default function InvoiceDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -235,11 +235,11 @@ export default function InvoiceDetail() {
 
               {/* Tokenized Bill Info */}
               {nftAddress && (
-                <div className="mt-4 border-l-4 border-green-500 bg-green-50/50 dark:bg-green-950/10 p-4 rounded-r-lg">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="text-sm font-semibold text-green-900 dark:text-green-200">
+                <div className="mt-4 border-l-4 border-green-500 bg-green-50/50 dark:bg-green-950/10 p-5 rounded-r-lg">
+                  <div className="flex items-start gap-5">
+                    <div className="flex-1 space-y-2.5">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <p className="text-base font-semibold text-green-900 dark:text-green-200">
                           Tokenized Bill Powered by SETTL.
                         </p>
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-900/40 px-2.5 py-1 text-xs font-semibold text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700">
@@ -247,43 +247,37 @@ export default function InvoiceDetail() {
                           RWA
                         </span>
                       </div>
-                      <p className="text-xs text-green-800/90 dark:text-green-300/90 leading-relaxed">
+                      <p className="text-sm text-green-800/90 dark:text-green-300/90 leading-relaxed">
                         This invoice has been tokenized as an ERC721 NFT by SETTL, making it a tradeable Real-World Asset (RWA).
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {tokenId && BigInt(tokenId) > 0n && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 h-8 text-xs"
-                          >
-                            <a
-                              href={`https://explorer.testnet.mantle.xyz/token/${nftAddress}?a=${tokenId.toString()}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="h-3 w-3 mr-1.5" />
-                              View Explorer
-                            </a>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
+                    {tokenId && BigInt(tokenId) > 0n && (
+                      <div className="flex-shrink-0">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          asChild
+                          className="h-10 w-10 rounded-lg border-green-300 dark:border-green-700 bg-white dark:bg-green-950/20 hover:bg-green-100 dark:hover:bg-green-900/30 hover:border-green-400 dark:hover:border-green-600 transition-all"
+                          title="View on Explorer"
+                          onClick={(e) => {
+                            // On right-click or ctrl+click, copy ID instead
+                            if (e.ctrlKey || e.metaKey) {
+                              e.preventDefault()
                               navigator.clipboard.writeText(`${nftAddress}/${tokenId.toString()}`)
                               toast.success("NFT ID copied!")
-                            }}
-                            className="h-8 text-xs text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-950/40"
+                            }
+                          }}
+                        >
+                          <a
+                            href={`https://explorer.testnet.mantle.xyz/token/${nftAddress}?a=${tokenId.toString()}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                           >
-                            <Copy className="h-3 w-3 mr-1.5" />
-                            Copy ID
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                            <ExternalLink className="h-4 w-4 text-green-700 dark:text-green-300" />
+                          </a>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -501,26 +495,28 @@ export default function InvoiceDetail() {
             {invoice.status < 2 && (
               <div className="mt-6 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
                 <h3 className="text-lg font-semibold text-primary mb-3">Share Payment Link with Buyer</h3>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex-1 min-w-0 rounded-md bg-background p-2.5 border border-border">
-                    <p className="text-xs font-mono text-muted-foreground truncate">
-                      {window.location.origin}/pay/{invoice.invoiceId.toString()}
-                    </p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0 rounded-md bg-background px-3 py-2 border border-border overflow-x-auto">
+                      <p className="text-sm font-mono text-foreground whitespace-nowrap">
+                        {window.location.origin}/pay/{invoice.invoiceId.toString()}
+                      </p>
+                    </div>
+                    <Button
+                      variant="default"
+                      size="icon"
+                      onClick={copyPaymentLink}
+                      className="flex-shrink-0 h-10 w-10"
+                      title="Copy Payment Link"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={copyPaymentLink}
-                    className="flex-shrink-0"
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy Payment Link
-                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     asChild
-                    className="flex-shrink-0"
+                    className="w-full"
                   >
                     <a
                       href={`${window.location.origin}/pay/${invoice.invoiceId}`}

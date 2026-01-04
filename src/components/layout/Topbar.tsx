@@ -1,4 +1,4 @@
-import { Bell, Search, ChevronDown, Wallet, User, Copy, LogOut, ExternalLink, DollarSign, Loader2 } from "lucide-react"
+import { Bell, Search, ChevronDown, Wallet, User, Copy, LogOut, ExternalLink, DollarSign, Loader2, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -15,7 +15,11 @@ import { usePrivy, useWallets } from "@privy-io/react-auth"
 import { toast } from "sonner"
 import { useTokenBalance } from "@/hooks/useTokenBalance"
 
-export function Topbar() {
+interface TopbarProps {
+  onMenuClick?: () => void
+}
+
+export function Topbar({ onMenuClick }: TopbarProps = {}) {
   const privy = usePrivy()
   const { ready, authenticated, user, login, logout } = privy
   const { balance: usdcBalance, isLoading: isLoadingBalance } = useTokenBalance()
@@ -373,33 +377,46 @@ export function Topbar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-xl">
-      {/* Search */}
-      <div className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder="Search invoices, transactions..."
-          className="h-10 w-full rounded-lg border-border bg-secondary/50 pl-10 pr-4 text-sm placeholder:text-muted-foreground focus:bg-background"
-        />
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 px-4 md:px-6 backdrop-blur-xl">
+      {/* Left side - Menu button (mobile) and Search */}
+      <div className="flex items-center gap-3 flex-1 md:flex-none">
+        {/* Mobile menu button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={onMenuClick}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        
+        {/* Search - hidden on mobile, visible on tablet+ */}
+        <div className="hidden md:block relative w-full max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search invoices, transactions..."
+            className="h-10 w-full rounded-lg border-border bg-secondary/50 pl-10 pr-4 text-sm placeholder:text-muted-foreground focus:bg-background"
+          />
+        </div>
       </div>
 
       {/* Right side actions */}
-      <div className="flex items-center gap-3">
-        {/* Network pill */}
-        <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3 py-1.5">
+      <div className="flex items-center gap-2 md:gap-3">
+        {/* Network pill - hidden on mobile */}
+        <div className="hidden sm:flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3 py-1.5">
           <div className="h-2 w-2 rounded-full bg-success" />
           <span className="text-xs font-medium">Mantle</span>
         </div>
 
-        {/* Account */}
-        <Button variant="outline" size="sm" className="gap-2">
+        {/* Account - hidden on mobile */}
+        <Button variant="outline" size="sm" className="hidden lg:flex gap-2">
           <User className="h-4 w-4" />
           Your Account
         </Button>
 
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
+        {/* Notifications - hidden on mobile */}
+        <Button variant="ghost" size="icon" className="hidden sm:flex relative">
           <Bell className="h-5 w-5" />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
         </Button>
@@ -408,13 +425,13 @@ export function Topbar() {
         {isConnected && walletAddress ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="secondary" className="gap-2">
+              <Button variant="secondary" className="gap-2 text-xs sm:text-sm">
                 <Wallet className="h-4 w-4" />
                 <span className="hidden sm:inline font-mono">{truncatedAddress}</span>
-                <StatusBadge status="verified" dot={false} className="px-2 py-0.5">
+                <StatusBadge status="verified" dot={false} className="hidden sm:flex px-2 py-0.5">
                   Connected
                 </StatusBadge>
-                <ChevronDown className="h-3 w-3 opacity-50" />
+                <ChevronDown className="h-3 w-3 opacity-50 hidden sm:inline" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-72">
@@ -498,25 +515,29 @@ export function Topbar() {
           // Authenticated but no wallet - need to create wallet
           <Button 
             variant="secondary" 
-            className="gap-2"
+            size="sm"
+            className="gap-2 text-xs sm:text-sm"
             onClick={handleWalletClick}
             disabled={!ready}
           >
             <Wallet className="h-4 w-4" />
-            <span>Create Wallet</span>
-            {!ready && <span className="text-xs opacity-50 ml-2">(Loading...)</span>}
+            <span className="hidden sm:inline">Create Wallet</span>
+            <span className="sm:hidden">Wallet</span>
+            {!ready && <span className="hidden sm:inline text-xs opacity-50 ml-2">(Loading...)</span>}
           </Button>
         ) : (
           // Not authenticated - login button
           <Button 
             variant="secondary" 
-            className="gap-2"
+            size="sm"
+            className="gap-2 text-xs sm:text-sm"
             onClick={handleWalletClick}
             disabled={!ready}
           >
             <Wallet className="h-4 w-4" />
-            <span>Login</span>
-            {!ready && <span className="text-xs opacity-50 ml-2">(Loading...)</span>}
+            <span className="hidden sm:inline">Login</span>
+            <span className="sm:hidden">Login</span>
+            {!ready && <span className="hidden sm:inline text-xs opacity-50 ml-2">(Loading...)</span>}
           </Button>
         )}
       </div>
