@@ -1,5 +1,5 @@
 import { motion } from "framer-motion"
-import { useMemo, useEffect } from "react"
+import { useMemo, useEffect, useState, useRef } from "react"
 import { 
   FileText, 
   Plus, 
@@ -9,17 +9,43 @@ import {
   DollarSign,
   CheckCircle2,
   Zap,
-  Loader2
+  Loader2,
+  ArrowUpLeft,
+  Copy,
+  ExternalLink,
+  Coins
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { StatCard } from "@/components/ui/stat-card"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { WaterfallAnimation } from "@/components/features/WaterfallAnimation"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useSellerInvoicesWithData, InvoiceStatus } from "@/hooks/useInvoice"
 import { useReputation } from "@/hooks/useReputation"
 import { useTokenBalance } from "@/hooks/useTokenBalance"
-import { formatUnits } from "viem"
+import { usePrivyAccount } from "@/hooks/usePrivyAccount"
+import { useSendTransaction, useWallets } from "@privy-io/react-auth"
+import { useBalance, useWaitForTransactionReceipt } from "wagmi"
+import { contractAddresses } from "@/lib/contracts"
+import { DemoUSDCABI } from "@/lib/abis"
+import { formatUnits, parseUnits, encodeFunctionData, isAddress } from "viem"
+import { toast } from "sonner"
 
 const STATUS_MAP: Record<InvoiceStatus, string> = {
   0: "issued",
@@ -45,6 +71,7 @@ export default function Dashboard() {
   const { invoices, isLoading: isLoadingInvoices, error: invoiceError } = useSellerInvoicesWithData()
   const { score, tierLabel, stats, isLoading: isLoadingReputation } = useReputation()
   const { balance: usdcBalance, isLoading: isLoadingBalance, error: balanceError } = useTokenBalance()
+  const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false)
 
   // Get cleared invoices (status === 3) - MUST BE BEFORE score calculation
   const clearedInvoices = useMemo(() => {
@@ -211,6 +238,14 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setWithdrawDialogOpen(true)}
+            disabled={isLoadingBalance}
+          >
+            <ArrowUpLeft className="h-4 w-4 mr-2" />
+            Withdraw
+          </Button>
           <Button variant="hero" asChild>
             <Link to="/app/invoices/new">
               <Plus className="h-4 w-4" />
@@ -424,6 +459,366 @@ export default function Dashboard() {
           sellerAmount={7500}
         />
       </motion.div>
+
+      {/* Withdraw Dialog */}
+      <WithdrawDialog
+        open={withdrawDialogOpen}
+        onOpenChange={setWithdrawDialogOpen}
+        usdcBalance={usdcBalance}
+        usdcRawBalance={0}
+      />
     </motion.div>
+  )
+}
+
+function WithdrawDialog({
+  open,
+  onOpenChange,
+  usdcBalance,
+  usdcRawBalance,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  usdcBalance: number
+  usdcRawBalance: number
+}) {
+  const { address } = usePrivyAccount()
+  const { sendTransaction } = useSendTransaction()
+  const { wallets } = useWallets()
+  const [tokenType, setTokenType] = useState<"USDC" | "MNT">("USDC")
+  const [withdrawAmount, setWithdrawAmount] = useState("")
+  const [toAddress, setToAddress] = useState("")
+  const [hash, setHash] = useState<string | null>(null)
+  const [isPending, setIsPending] = useState(false)
+  const withdrawSuccessToastShown = useRef<string | null>(null)
+
+  const embeddedWallet = wallets.find(w => {
+    const ct = w.connectorType?.toLowerCase() || ''
+    const wct = w.walletClientType?.toLowerCase() || ''
+    return ct === 'embedded' || wct === 'privy' || ct.includes('privy') || ct.includes('embedded')
+  }) || wallets[0]
+
+  // Get MNT native balance
+  const { data: mntBalance, isLoading: isLoadingMNT } = useBalance({
+    address: address as `0x${string}` | undefined,
+    query: {
+      enabled: !!address && tokenType === "MNT",
+    },
+  })
+
+  const mntBalanceFormatted = mntBalance ? parseFloat(formatUnits(mntBalance.value, 18)) : 0
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash: hash as `0x${string}` | undefined,
+    chainId: 5003,
+    query: {
+      enabled: !!hash,
+      retry: 3,
+      retryDelay: 2000,
+    },
+  })
+
+  // Get current balance based on token type
+  const currentBalance = tokenType === "USDC" ? usdcBalance : mntBalanceFormatted
+  const isLoadingBalance = tokenType === "USDC" ? false : isLoadingMNT
+
+  // Handle withdraw success
+  useEffect(() => {
+    if (hash && isSuccess && withdrawSuccessToastShown.current !== hash) {
+      withdrawSuccessToastShown.current = hash
+      
+      const copyToClipboard = () => {
+        navigator.clipboard.writeText(hash)
+        toast.success("Transaction hash copied!")
+      }
+      
+      toast.success(
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-500 flex-shrink-0" />
+          <span className="font-semibold">Withdrawal Successful!</span>
+        </div>,
+        {
+          description: (
+            <div className="space-y-3 mt-2">
+               <p className="font-medium text-sm">Your withdrawal of {withdrawAmount} {tokenType} has been successfully sent to {toAddress.slice(0, 6)}...{toAddress.slice(-4)}.</p>
+              
+              <div className="space-y-2 pt-2 border-t border-border/50">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">TRANSACTION HASH</span>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      value={hash}
+                      readOnly
+                      className="font-mono text-xs pr-10"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyToClipboard();
+                      }}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <Button asChild className="w-full mt-4">
+                  <a
+                    href={`https://explorer.testnet.mantle.xyz/tx/${hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View on Explorer
+                  </a>
+                </Button>
+                <Button variant="outline" className="w-full mt-2" onClick={() => {
+                  setWithdrawAmount("")
+                  setToAddress("")
+                  onOpenChange(false)
+                }}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          ),
+          duration: 10000,
+          id: 'withdraw-success',
+        }
+      )
+      
+      setWithdrawAmount("")
+      setToAddress("")
+      onOpenChange(false)
+    }
+  }, [hash, isSuccess, isConfirming, withdrawAmount, tokenType, toAddress, onOpenChange])
+
+  const handleWithdraw = async () => {
+    if (!withdrawAmount) {
+      toast.error("Enter withdrawal amount")
+      return
+    }
+
+    if (!toAddress || !isAddress(toAddress)) {
+      toast.error("Invalid address", {
+        description: "Please enter a valid Ethereum address",
+      })
+      return
+    }
+
+    const amount = parseFloat(withdrawAmount)
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Invalid amount", {
+        description: "Amount must be greater than 0",
+      })
+      return
+    }
+
+    if (amount > currentBalance) {
+       toast.error("Insufficient balance", {
+         description: `You have ${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${tokenType} available`,
+       })
+      return
+    }
+
+    if (!embeddedWallet) {
+      toast.error("No wallet available", {
+        description: "Please connect your Privy embedded wallet",
+      })
+      return
+    }
+
+    setIsPending(true)
+    setHash(null)
+
+    try {
+      if (tokenType === "USDC") {
+        // Transfer USDC (ERC20 transfer)
+        if (!contractAddresses.DemoUSDC) {
+          throw new Error("USDC contract address not configured")
+        }
+
+        const amountBigInt = parseUnits(withdrawAmount, 6) // USDC has 6 decimals
+        
+        const data = encodeFunctionData({
+          abi: DemoUSDCABI,
+          functionName: "transfer",
+          args: [toAddress as `0x${string}`, amountBigInt],
+        })
+
+        const result = await sendTransaction(
+          {
+            to: contractAddresses.DemoUSDC as `0x${string}`,
+            data: data,
+            value: 0n,
+            chainId: 5003,
+          },
+          {
+            address: embeddedWallet.address,
+            uiOptions: {
+              showWalletUIs: false,
+            },
+          }
+        )
+
+        setHash(result.hash)
+      } else {
+        // Transfer MNT (native token)
+        const amountBigInt = parseUnits(withdrawAmount, 18) // MNT has 18 decimals
+        
+        const result = await sendTransaction(
+          {
+            to: toAddress as `0x${string}`,
+            data: "0x" as `0x${string}`,
+            value: amountBigInt,
+            chainId: 5003,
+          },
+          {
+            address: embeddedWallet.address,
+            uiOptions: {
+              showWalletUIs: false,
+            },
+          }
+        )
+
+        setHash(result.hash)
+      }
+
+      setIsPending(false)
+    } catch (error: any) {
+      setIsPending(false)
+      toast.error("Withdrawal failed", {
+        description: error.message || "Please try again",
+      })
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+         <DialogHeader>
+           <DialogTitle>Withdraw Funds</DialogTitle>
+           <DialogDescription>
+             Send tokens to any address. Gas fees are paid in MNT (Mantle).
+           </DialogDescription>
+         </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {/* Token Type Selector */}
+          <div className="space-y-2">
+            <Label htmlFor="tokenType">Token Type</Label>
+            <Select value={tokenType} onValueChange={(value: "USDC" | "MNT") => {
+              setTokenType(value)
+              setWithdrawAmount("") // Reset amount when changing token type
+            }}>
+              <SelectTrigger id="tokenType">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USDC">USDC</SelectItem>
+                <SelectItem value="MNT">MNT (Native)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Current Balance */}
+          <div className="rounded-lg border border-border bg-secondary/50 p-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Available Balance</span>
+               <span className="text-lg font-semibold">
+                 {isLoadingBalance ? "..." : `${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${tokenType}`}
+               </span>
+            </div>
+          </div>
+
+          {/* Recipient Address */}
+          <div className="space-y-2">
+            <Label htmlFor="toAddress">Recipient Address</Label>
+            <Input
+              id="toAddress"
+              type="text"
+              placeholder="0x..."
+              value={toAddress}
+              onChange={(e) => setToAddress(e.target.value)}
+              disabled={isPending || isConfirming}
+            />
+          </div>
+
+          {/* Withdraw Amount Input */}
+          <div className="space-y-2">
+             <Label htmlFor="withdrawAmount">Amount to Withdraw</Label>
+            <Input
+              id="withdrawAmount"
+              type="number"
+              placeholder="0.00"
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(e.target.value)}
+              min="0"
+              step="0.01"
+              disabled={isPending || isConfirming || isLoadingBalance}
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setWithdrawAmount((currentBalance * 0.25).toFixed(2))}
+                disabled={currentBalance === 0 || isLoadingBalance}
+              >
+                25%
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setWithdrawAmount((currentBalance * 0.5).toFixed(2))}
+                disabled={currentBalance === 0 || isLoadingBalance}
+              >
+                50%
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setWithdrawAmount((currentBalance * 0.75).toFixed(2))}
+                disabled={currentBalance === 0 || isLoadingBalance}
+              >
+                75%
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setWithdrawAmount(currentBalance.toFixed(2))}
+                disabled={currentBalance === 0 || isLoadingBalance}
+              >
+                Max
+              </Button>
+            </div>
+          </div>
+
+          {/* Withdraw Button */}
+          <Button
+            onClick={handleWithdraw}
+            disabled={!withdrawAmount || !toAddress || isPending || isConfirming || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > currentBalance || isLoadingBalance}
+            className="w-full"
+            variant="default"
+          >
+            {isPending || isConfirming ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isPending ? "Waiting for wallet..." : "Processing..."}
+              </>
+            ) : (
+               <>
+                 <ArrowUpLeft className="mr-2 h-4 w-4" />
+                 Send {withdrawAmount || "0"} {tokenType}
+               </>
+             )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

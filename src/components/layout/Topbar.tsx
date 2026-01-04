@@ -15,11 +15,7 @@ import { usePrivy, useWallets } from "@privy-io/react-auth"
 import { toast } from "sonner"
 import { useTokenBalance } from "@/hooks/useTokenBalance"
 
-const roles = ["Seller", "Buyer", "LP", "Underwriter"] as const
-type Role = (typeof roles)[number]
-
 export function Topbar() {
-  const [currentRole, setCurrentRole] = useState<Role>("Seller")
   const privy = usePrivy()
   const { ready, authenticated, user, login, logout } = privy
   const { balance: usdcBalance, isLoading: isLoadingBalance } = useTokenBalance()
@@ -396,29 +392,11 @@ export function Topbar() {
           <span className="text-xs font-medium">Mantle</span>
         </div>
 
-        {/* Role switcher */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <User className="h-4 w-4" />
-              {currentRole}
-              <ChevronDown className="h-3 w-3 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuLabel>Switch Role</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {roles.map((role) => (
-              <DropdownMenuItem
-                key={role}
-                onClick={() => setCurrentRole(role)}
-                className={currentRole === role ? "bg-accent" : ""}
-              >
-                {role}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Account */}
+        <Button variant="outline" size="sm" className="gap-2">
+          <User className="h-4 w-4" />
+          Your Account
+        </Button>
 
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
