@@ -432,8 +432,6 @@ export function useActivity() {
     }
 
     const fetchPastEvents = async () => {
-      // Load stored activities first to merge with new ones
-      const storedActivities = loadActivitiesFromStorage(address);
       try {
         setIsLoading(true);
         console.log('🔍 Fetching past events for activity feed...', { address });
@@ -469,7 +467,8 @@ export function useActivity() {
           description: string,
           amount: bigint | null,
           direction: Activity['direction'],
-          invoiceId?: bigint
+          invoiceId?: bigint,
+          decimals: number = 6 // Default to 6 decimals (USDC), but allow override for MNT (18 decimals)
         ): Promise<Activity | null> => {
           const timestamp = await getBlockTimestamp(log.blockNumber || 0n);
           const activityId = invoiceId 
@@ -481,7 +480,7 @@ export function useActivity() {
             type,
             title,
             description,
-            amount: amount ? parseFloat(formatUnits(amount, 6)) : null,
+            amount: amount ? parseFloat(formatUnits(amount, decimals)) : null,
             direction,
             timestamp,
             txHash: log.transactionHash,
@@ -919,6 +918,71 @@ export function useActivity() {
           }
         }
 
+        // Fetch native MNT transfers from recent blocks
+        try {
+          console.log('📋 Fetching native MNT transfers from blocks...');
+          const addressLower = address?.toLowerCase();
+          
+          for (let blockNum = fromBlock; blockNum <= toBlock; blockNum++) {
+            try {
+              const block = await publicClient.getBlock({ blockNumber: blockNum, includeTransactions: true });
+              
+              if (block.transactions && Array.isArray(block.transactions)) {
+                for (const tx of block.transactions) {
+                  if (typeof tx === 'object' && tx.hash && tx.value && tx.value > 0n) {
+                    const txFrom = (tx as any).from?.toLowerCase();
+                    const txTo = (tx as any).to?.toLowerCase();
+                    
+                    // Track outgoing MNT transfers (user sends)
+                    if (txFrom === addressLower && txTo && txTo !== addressLower) {
+                      const activity = await createActivityFromLog(
+                        { transactionHash: tx.hash, blockNumber: blockNum, logIndex: 0 },
+                        'mnt_transfer',
+                        'MNT Sent',
+                        `Sent to ${(tx as any).to.slice(0, 6)}...${(tx as any).to.slice(-4)}`,
+                        tx.value,
+                        'out',
+                        undefined,
+                        18 // MNT has 18 decimals
+                      );
+                      if (activity) {
+                        allActivities.push(activity);
+                        console.log('➕ Added outgoing MNT transfer activity');
+                      }
+                    }
+                    
+                    // Track incoming MNT transfers (user receives)
+                    if (txTo === addressLower && txFrom && txFrom !== addressLower) {
+                      const activity = await createActivityFromLog(
+                        { transactionHash: tx.hash, blockNumber: blockNum, logIndex: 0 },
+                        'mnt_transfer',
+                        'MNT Received',
+                        `Received from ${(tx as any).from.slice(0, 6)}...${(tx as any).from.slice(-4)}`,
+                        tx.value,
+                        'in',
+                        undefined,
+                        18 // MNT has 18 decimals
+                      );
+                      if (activity) {
+                        allActivities.push(activity);
+                        console.log('➕ Added incoming MNT transfer activity');
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (blockErr) {
+              console.error(`❌ Error fetching block ${blockNum}:`, blockErr);
+              // Continue with next block
+            }
+          }
+        } catch (mntErr) {
+          console.error('❌ Error fetching MNT transfers:', mntErr);
+        }
+
+        // Reload from localStorage NOW (after async operations) to get any activities saved by other useEffects
+        const storedActivities = loadActivitiesFromStorage(address);
+        
         // Merge with stored activities and remove duplicates
         const mergedActivities: Activity[] = [...storedActivities];
         
@@ -998,9 +1062,15 @@ export function useActivity() {
       }
     });
 
-    // Merge with existing activities, avoiding duplicates
+    // Merge with existing activities from state AND localStorage, avoiding duplicates
     setActivities((prev) => {
-      const merged = [...prev];
+      // Also load from localStorage to ensure we have all stored activities
+      const storedActivities = loadActivitiesFromStorage(address || '');
+      const allExisting = [...new Set([...prev, ...storedActivities].map(a => a.id))]
+        .map(id => [...prev, ...storedActivities].find(a => a.id === id))
+        .filter(Boolean) as Activity[];
+      
+      const merged = [...allExisting];
       invoiceActivities.forEach((newActivity) => {
         const exists = merged.some((a) => 
           a.id === newActivity.id || 

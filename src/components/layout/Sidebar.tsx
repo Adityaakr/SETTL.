@@ -22,7 +22,7 @@ const navigation = [
   { name: "Funding Pool", href: "/app/vault", icon: Vault },
   { name: "Reputation", href: "/app/reputation", icon: Award },
   { name: "Proofs", href: "/app/proofs", icon: ShieldCheck },
-  { name: "Activity", href: "/app/activity", icon: Activity },
+  // { name: "Activity", href: "/app/activity", icon: Activity }, // Hidden for now
   { name: "Settings", href: "/app/settings", icon: Settings },
 ]
 
