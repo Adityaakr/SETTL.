@@ -137,7 +137,7 @@ export default function Dashboard() {
   const recentInvoices = useMemo(() => {
     if (!invoices || invoices.length === 0) return []
     
-    return invoices.slice(0, 4).map(invoice => {
+    return invoices.slice(0, 6).map(invoice => {
       const invoiceDate = new Date(Number(invoice.createdAt) * 1000)
       const amount = parseFloat(formatUnits(invoice.amount, 6))
       
