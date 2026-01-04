@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useWatchContractEvent, usePublicClient } from 'wagmi';
 import { usePrivyAccount } from './usePrivyAccount';
 import { contractAddresses } from '@/lib/contracts';
-import { InvoiceRegistryABI, AdvanceEngineABI, VaultABI, SettlementRouterABI, StakingABI } from '@/lib/abis';
+import { InvoiceRegistryABI, AdvanceEngineABI, VaultABI, SettlementRouterABI, StakingABI, DemoUSDCABI } from '@/lib/abis';
 import { formatUnits, formatEther, parseEventLogs } from 'viem';
 import { useSellerInvoicesWithData, Invoice } from './useInvoice';
 
 export interface Activity {
   id: string;
-  type: 'invoice_created' | 'invoice_paid' | 'invoice_cleared' | 'advance_received' | 'advance_repaid' | 'vault_deposit' | 'vault_withdraw' | 'stake' | 'unstake';
+  type: 'invoice_created' | 'invoice_paid' | 'invoice_cleared' | 'advance_received' | 'advance_repaid' | 'vault_deposit' | 'vault_withdraw' | 'stake' | 'unstake' | 'usdc_transfer' | 'mnt_transfer';
   title: string;
   description: string;
   amount: number | null;
@@ -18,6 +18,52 @@ export interface Activity {
   blockNumber: bigint;
 }
 
+// localStorage key helper
+const getStorageKey = (address: string) => `settl_activities_${address.toLowerCase()}`;
+
+// Helper to save activities to localStorage
+const saveActivitiesToStorage = (address: string, activities: Activity[]) => {
+  try {
+    if (!address || typeof window === 'undefined') return;
+    
+    const storageKey = getStorageKey(address);
+    // Serialize activities (convert bigint to string)
+    const serialized = activities.map(activity => ({
+      ...activity,
+      blockNumber: activity.blockNumber.toString(),
+    }));
+    
+    localStorage.setItem(storageKey, JSON.stringify(serialized));
+    console.log('💾 Saved', activities.length, 'activities to localStorage');
+  } catch (error) {
+    console.error('❌ Error saving activities to localStorage:', error);
+  }
+};
+
+// Helper to load activities from localStorage
+const loadActivitiesFromStorage = (address: string): Activity[] => {
+  try {
+    if (!address || typeof window === 'undefined') return [];
+    
+    const storageKey = getStorageKey(address);
+    const stored = localStorage.getItem(storageKey);
+    if (!stored) return [];
+    
+    const parsed = JSON.parse(stored) as any[];
+    // Deserialize activities (convert string back to bigint)
+    const activities: Activity[] = parsed.map(activity => ({
+      ...activity,
+      blockNumber: BigInt(activity.blockNumber),
+    }));
+    
+    console.log('📂 Loaded', activities.length, 'activities from localStorage');
+    return activities;
+  } catch (error) {
+    console.error('❌ Error loading activities from localStorage:', error);
+    return [];
+  }
+};
+
 export function useActivity() {
   const { address } = usePrivyAccount();
   const publicClient = usePublicClient({ chainId: 5003 });
@@ -25,7 +71,7 @@ export function useActivity() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Helper to add activity
+  // Helper to add activity and save to localStorage
   const addActivity = useCallback((activity: Activity) => {
     setActivities((prev) => {
       // Avoid duplicates by checking id (txHash + logIndex if available)
@@ -34,9 +80,16 @@ export function useActivity() {
       
       // Add to beginning and sort by timestamp (newest first)
       const updated = [activity, ...prev];
-      return updated.sort((a, b) => b.timestamp - a.timestamp);
+      const sorted = updated.sort((a, b) => b.timestamp - a.timestamp);
+      
+      // Save to localStorage
+      if (address) {
+        saveActivitiesToStorage(address, sorted);
+      }
+      
+      return sorted;
     });
-  }, []);
+  }, [address]);
 
   // Watch InvoiceCreated events
   useWatchContractEvent({
@@ -291,7 +344,87 @@ export function useActivity() {
     },
   });
 
-  // Load past events on mount
+  // Watch USDC Transfer events (for both incoming and outgoing transfers)
+  useWatchContractEvent({
+    address: (address && contractAddresses.DemoUSDC ? contractAddresses.DemoUSDC : undefined) as `0x${string}` | undefined,
+    abi: DemoUSDCABI,
+    eventName: 'Transfer',
+    onLogs(logs) {
+      console.log('🔔 USDC Transfer event detected:', logs.length, 'logs');
+      logs.forEach((log) => {
+        const { from, to, value } = (log as any).args;
+        const fromLower = from?.toLowerCase();
+        const toLower = to?.toLowerCase();
+        const addressLower = address?.toLowerCase();
+        
+        console.log('🔍 Processing Transfer event:', {
+          from: fromLower,
+          to: toLower,
+          address: addressLower,
+          value: value?.toString(),
+        });
+        
+        // Skip if from and to are the same (self-transfers)
+        if (fromLower === toLower) {
+          console.log('⏭️ Skipping self-transfer');
+          return;
+        }
+        
+        // Track outgoing transfers (user sends funds)
+        if (fromLower === addressLower) {
+          console.log('📤 Detected outgoing USDC transfer');
+          addActivity({
+            id: `usdc-transfer-out-${log.transactionHash}-${log.logIndex}`,
+            type: 'usdc_transfer',
+            title: 'USDC Sent',
+            description: `Sent to ${to?.slice(0, 6)}...${to?.slice(-4)}`,
+            amount: parseFloat(formatUnits(value || 0n, 6)),
+            direction: 'out',
+            timestamp: Date.now(),
+            txHash: log.transactionHash,
+            blockNumber: log.blockNumber || 0n,
+          });
+        }
+        
+        // Track incoming transfers (user receives funds)
+        if (toLower === addressLower) {
+          console.log('📥 Detected incoming USDC transfer');
+          addActivity({
+            id: `usdc-transfer-in-${log.transactionHash}-${log.logIndex}`,
+            type: 'usdc_transfer',
+            title: 'USDC Received',
+            description: `Received from ${from?.slice(0, 6)}...${from?.slice(-4)}`,
+            amount: parseFloat(formatUnits(value || 0n, 6)),
+            direction: 'in',
+            timestamp: Date.now(),
+            txHash: log.transactionHash,
+            blockNumber: log.blockNumber || 0n,
+          });
+        }
+      });
+    },
+    onError(error) {
+      console.error('❌ Error watching USDC Transfer events:', error);
+    },
+  });
+
+  // Load stored activities immediately on mount for instant display
+  useEffect(() => {
+    if (!address) {
+      setActivities([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const storedActivities = loadActivitiesFromStorage(address);
+    console.log('📂 Initial load from localStorage:', storedActivities.length, 'activities');
+    if (storedActivities.length > 0) {
+      setActivities(storedActivities);
+      setIsLoading(false); // Set loading to false immediately if we have stored activities
+    }
+  }, [address]);
+
+  // Load past events on mount (also loads from localStorage and merges)
   useEffect(() => {
     if (!publicClient || !address) {
       setIsLoading(false);
@@ -299,6 +432,8 @@ export function useActivity() {
     }
 
     const fetchPastEvents = async () => {
+      // Load stored activities first to merge with new ones
+      const storedActivities = loadActivitiesFromStorage(address);
       try {
         setIsLoading(true);
         console.log('🔍 Fetching past events for activity feed...', { address });
@@ -306,11 +441,13 @@ export function useActivity() {
         const currentBlock = await publicClient.getBlockNumber();
         console.log('📦 Current block:', currentBlock.toString());
         
-        // Fetch events from last ~10k blocks (roughly last day on Mantle)
-        // Reduced further to improve performance and reliability
-        const BLOCKS_TO_SEARCH = 10000n;
-        const fromBlock = currentBlock > BLOCKS_TO_SEARCH ? currentBlock - BLOCKS_TO_SEARCH : 0n;
-        console.log('🔎 Searching blocks:', fromBlock.toString(), 'to', currentBlock.toString());
+        // Fetch events from last 10 blocks (Alchemy free tier limit: max 10 blocks per request)
+        // Note: Free tier RPC providers (like Alchemy) limit eth_getLogs to 10 block ranges (inclusive)
+        // To get exactly 10 blocks: if fromBlock = N, toBlock must be N+9 (not N+10, as range is inclusive)
+        const BLOCKS_TO_SEARCH = 10n;
+        const fromBlock = currentBlock >= BLOCKS_TO_SEARCH ? currentBlock - (BLOCKS_TO_SEARCH - 1n) : 0n;
+        const toBlock = currentBlock; // This gives us exactly 10 blocks when fromBlock = currentBlock - 9
+        console.log('🔎 Searching blocks:', fromBlock.toString(), 'to', toBlock.toString(), `(${Number(toBlock - fromBlock + 1n)} blocks - Alchemy free tier limit)`);
         
         const allActivities: Activity[] = [];
 
@@ -359,7 +496,7 @@ export function useActivity() {
             const rawLogs = await publicClient.getLogs({
               address: contractAddresses.SettlementRouter as `0x${string}`,
               fromBlock,
-              toBlock: currentBlock,
+              toBlock,
             });
             console.log('📋 Raw logs fetched:', rawLogs.length);
 
@@ -408,7 +545,7 @@ export function useActivity() {
             const rawLogs = await publicClient.getLogs({
               address: contractAddresses.InvoiceRegistry as `0x${string}`,
               fromBlock,
-              toBlock: currentBlock,
+              toBlock,
             });
             console.log('📋 Raw InvoiceRegistry logs fetched:', rawLogs.length);
 
@@ -489,7 +626,7 @@ export function useActivity() {
             const rawLogs = await publicClient.getLogs({
               address: contractAddresses.AdvanceEngine as `0x${string}`,
               fromBlock,
-              toBlock: currentBlock,
+              toBlock,
             });
             console.log('📋 Raw AdvanceEngine logs fetched:', rawLogs.length);
 
@@ -565,7 +702,7 @@ export function useActivity() {
             const rawLogs = await publicClient.getLogs({
               address: contractAddresses.Vault as `0x${string}`,
               fromBlock,
-              toBlock: currentBlock,
+              toBlock,
             });
             console.log('📋 Raw Vault logs fetched:', rawLogs.length);
 
@@ -642,7 +779,7 @@ export function useActivity() {
             const rawLogs = await publicClient.getLogs({
               address: contractAddresses.Staking as `0x${string}`,
               fromBlock,
-              toBlock: currentBlock,
+              toBlock,
             });
             console.log('📋 Raw Staking logs fetched:', rawLogs.length);
 
@@ -712,13 +849,104 @@ export function useActivity() {
           }
         }
 
+        // Fetch USDC Transfer events (for both incoming and outgoing transfers)
+        if (contractAddresses.DemoUSDC) {
+          try {
+            console.log('📋 Fetching USDC Transfer events...');
+            const rawLogs = await publicClient.getLogs({
+              address: contractAddresses.DemoUSDC as `0x${string}`,
+              fromBlock,
+              toBlock,
+            });
+            console.log('📋 Raw DemoUSDC logs fetched:', rawLogs.length);
+
+            try {
+              const transferLogs = parseEventLogs({
+                abi: DemoUSDCABI,
+                logs: rawLogs,
+                eventName: 'Transfer',
+              });
+              console.log('✅ Parsed USDC Transfer logs:', transferLogs.length);
+
+              for (const log of transferLogs) {
+                const decoded = (log as any).args;
+                const fromLower = decoded?.from?.toLowerCase();
+                const toLower = decoded?.to?.toLowerCase();
+                const addressLower = address?.toLowerCase();
+                
+                // Skip self-transfers
+                if (fromLower === toLower) continue;
+                
+                // Track outgoing transfers (user sends funds)
+                if (fromLower === addressLower) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'usdc_transfer',
+                    'USDC Sent',
+                    `Sent to ${decoded.to?.slice(0, 6)}...${decoded.to?.slice(-4)}`,
+                    decoded.value || null,
+                    'out',
+                    undefined
+                  );
+                  if (activity) {
+                    allActivities.push(activity);
+                    console.log('➕ Added USDC outgoing transfer activity');
+                  }
+                }
+                
+                // Track incoming transfers (user receives funds)
+                if (toLower === addressLower) {
+                  const activity = await createActivityFromLog(
+                    { ...log, transactionHash: log.transactionHash, blockNumber: log.blockNumber, logIndex: log.logIndex },
+                    'usdc_transfer',
+                    'USDC Received',
+                    `Received from ${decoded.from?.slice(0, 6)}...${decoded.from?.slice(-4)}`,
+                    decoded.value || null,
+                    'in',
+                    undefined
+                  );
+                  if (activity) {
+                    allActivities.push(activity);
+                    console.log('➕ Added USDC incoming transfer activity');
+                  }
+                }
+              }
+            } catch (parseErr) {
+              console.error('❌ Error parsing USDC Transfer logs:', parseErr);
+            }
+          } catch (err) {
+            console.error('❌ Error fetching DemoUSDC events:', err);
+          }
+        }
+
+        // Merge with stored activities and remove duplicates
+        const mergedActivities: Activity[] = [...storedActivities];
+        
+        allActivities.forEach(newActivity => {
+          const exists = mergedActivities.some(a => a.id === newActivity.id);
+          if (!exists) {
+            mergedActivities.push(newActivity);
+          }
+        });
 
         // Sort by timestamp (newest first) and set activities
-        const sortedActivities = allActivities.sort((a, b) => b.timestamp - a.timestamp);
-        console.log('✅ Total activities from events:', sortedActivities.length);
+        const sortedActivities = mergedActivities.sort((a, b) => b.timestamp - a.timestamp);
+        console.log('✅ Total activities from events:', allActivities.length);
+        console.log('✅ Stored activities from localStorage:', storedActivities.length);
+        console.log('✅ Merged activities total:', sortedActivities.length);
+        
         setActivities(sortedActivities);
+        
+        // Save merged activities to localStorage (even if empty, to ensure we have the key)
+        saveActivitiesToStorage(address, sortedActivities);
       } catch (err) {
         console.error('❌ Error fetching past events:', err);
+        // On error, at least show stored activities if available
+        const storedActivities = loadActivitiesFromStorage(address);
+        if (storedActivities.length > 0) {
+          console.log('⚠️ Using stored activities due to error:', storedActivities.length);
+          setActivities(storedActivities);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -783,7 +1011,14 @@ export function useActivity() {
         }
       });
       // Sort by timestamp (newest first)
-      return merged.sort((a, b) => b.timestamp - a.timestamp);
+      const sorted = merged.sort((a, b) => b.timestamp - a.timestamp);
+      
+      // Save to localStorage
+      if (address) {
+        saveActivitiesToStorage(address, sorted);
+      }
+      
+      return sorted;
     });
     console.log('✅ Added', invoiceActivities.length, 'activities from invoice data');
   }, [invoices, address]);

@@ -93,8 +93,8 @@ export function useCreateInvoice() {
     chainId: 5003, // Explicitly set Mantle Sepolia chain ID
     query: {
       enabled: !!hash, // Only watch when hash exists
-      retry: 3, // Retry a few times
-      retryDelay: 2000, // Wait 2 seconds between retries
+      retry: 5, // More retries for reliability
+      retryDelay: 1000, // Reduced from 2000ms to 1000ms for faster polling
     },
   });
 

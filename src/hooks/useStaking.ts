@@ -70,8 +70,8 @@ export function useStake() {
     chainId: 5003,
     query: {
       enabled: !!hash,
-      retry: 3,
-      retryDelay: 2000,
+      retry: 5,
+      retryDelay: 1000, // Reduced from 2000ms to 1000ms for faster polling
     },
   });
 
@@ -150,8 +150,8 @@ export function useUnstake() {
     chainId: 5003,
     query: {
       enabled: !!hash,
-      retry: 3,
-      retryDelay: 2000,
+      retry: 5,
+      retryDelay: 1000, // Reduced from 2000ms to 1000ms for faster polling
     },
   });
 

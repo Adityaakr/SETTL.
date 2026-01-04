@@ -39,6 +39,10 @@ const getActivityIcon = (type: string) => {
       return DollarSign
     case "invoice_created":
       return FileText
+    case "usdc_transfer":
+      return ArrowUpRight
+    case "mnt_transfer":
+      return ArrowUpRight
     default:
       return FileText
   }
@@ -64,6 +68,10 @@ const getActivityColor = (type: string) => {
       return "bg-muted text-muted-foreground"
     case "invoice_created":
       return "bg-muted text-muted-foreground"
+    case "usdc_transfer":
+      return "bg-warning/10 text-warning"
+    case "mnt_transfer":
+      return "bg-warning/10 text-warning"
     default:
       return "bg-muted text-muted-foreground"
   }
