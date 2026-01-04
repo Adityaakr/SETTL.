@@ -14,10 +14,16 @@ const mantleTestnetChain = {
       http: [
         'https://rpc.sepolia.mantle.xyz',
       ],
+      webSocket: [
+        'wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
+      ],
     },
     public: {
       http: [
         'https://rpc.sepolia.mantle.xyz',
+      ],
+      webSocket: [
+        'wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
       ],
     },
   },
@@ -38,7 +44,7 @@ export const privyConfig = {
       accentColor: '#22c55e', // Green theme to match SETTL. branding
       logo: '/set.png', // SETTL. logo
     },
-    loginMethods: ['email', 'sms', 'google', 'twitter', 'github', 'wallet'], // Added 'wallet' to allow MetaMask and other external wallets
+    loginMethods: ['email'], // Email-only login
     embeddedWallets: {
       // Create embedded wallet on email/social login
       ethereum: {

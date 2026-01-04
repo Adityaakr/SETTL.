@@ -1,5 +1,5 @@
 import { createConfig } from '@privy-io/wagmi';
-import { http } from 'viem';
+import { http, webSocket } from 'viem';
 
 // Mantle Sepolia Testnet configuration (matches privy-config.ts)
 export const mantleTestnet = {
@@ -15,6 +15,9 @@ export const mantleTestnet = {
       http: [
         'https://rpc.sepolia.mantle.xyz',
       ],
+      webSocket: [
+        'wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX',
+      ],
     },
   },
   blockExplorers: {
@@ -28,17 +31,12 @@ export const mantleTestnet = {
 
 // Create Wagmi config using Privy's createConfig
 // Strategy:
-// - HTTP endpoint for reliability
-// - Robust error handling and retries
+// - WebSocket endpoint for realtime connections (subscriptions, event watching)
+// - HTTP endpoint as fallback for reliability
 export const wagmiConfig = createConfig({
   chains: [mantleTestnet],
   transports: {
-    [mantleTestnet.id]: http('https://rpc.sepolia.mantle.xyz', {
-      batch: {
-        wait: 50,
-        batchSize: 10,
-      },
-    }),
+    [mantleTestnet.id]: webSocket('wss://mantle-sepolia.g.alchemy.com/v2/H2xLs5teY1MdED6Fe0lSX'),
   },
 });
 
