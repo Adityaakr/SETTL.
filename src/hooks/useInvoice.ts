@@ -326,9 +326,24 @@ export function useCreateInvoice() {
         }
         
         // Handle insufficient funds error (reuse errorMessage declared above)
+        // Check error message, details, cause, and nested error strings
+        const errorDetails = err?.details ? String(err.details) : '';
+        const errorCause = err?.cause ? String(err.cause) : '';
+        const errorCauseLower = errorCause.toLowerCase();
+        const errorDetailsLower = errorDetails.toLowerCase();
+        
         const isInsufficientFunds = errorMsgLower.includes('insufficient funds') ||
                                    errorMsgLower.includes('insufficient balance') ||
                                    errorMessage.includes('overshot') ||
+                                   errorStringLower.includes('insufficient funds') ||
+                                   errorStringLower.includes('insufficient balance') ||
+                                   errorStringLower.includes('overshot') ||
+                                   errorDetailsLower.includes('insufficient funds') ||
+                                   errorDetailsLower.includes('insufficient balance') ||
+                                   errorDetailsLower.includes('overshot') ||
+                                   errorCauseLower.includes('insufficient funds') ||
+                                   errorCauseLower.includes('insufficient balance') ||
+                                   errorCauseLower.includes('overshot') ||
                                    (err?.details && String(err.details).includes('insufficient funds'));
         
         if (isInsufficientFunds) {

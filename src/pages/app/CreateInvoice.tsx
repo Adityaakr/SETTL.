@@ -191,6 +191,16 @@ export default function CreateInvoice() {
                                   error.message?.includes('temporary') ||
                                   error.message?.includes('Please retry')
       
+      // Check for insufficient funds error
+      const errorMessage = error.message || String(error || '');
+      const errorMsgLower = errorMessage.toLowerCase();
+      const isInsufficientFunds = errorMsgLower.includes('insufficient funds') ||
+                                  errorMsgLower.includes('insufficient balance') ||
+                                  errorMessage.includes('overshot') ||
+                                  errorMsgLower.includes('insufficient funds for gas') ||
+                                  (error.cause && String(error.cause).includes('insufficient funds')) ||
+                                  (error.cause && String(error.cause).includes('overshot'));
+      
       if (isAlreadyKnown && hash) {
         // If we have a hash, transaction was likely submitted successfully
         // Don't show error, just log it
