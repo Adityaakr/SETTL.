@@ -1,5 +1,6 @@
 # SETTL.
-<img width="1597" height="861" alt="Screenshot 2025-12-30 at 8 24 04 PM" src="https://github.com/user-attachments/assets/44c50d6d-37a0-4d79-93b3-f3112003f020" />
+<img width="1531" height="863" alt="Screenshot 2026-01-09 at 12 11 37 PM" src="https://github.com/user-attachments/assets/3d3d58c5-10b9-485b-aac2-1493f11311ef" />
+
 <img width="1710" height="864" alt="Screenshot 2025-12-30 at 9 36 14 PM" src="https://github.com/user-attachments/assets/fd448bbe-f006-4bcd-a567-a552233be2b1" />
 
 <img width="1155" height="474" alt="Screenshot 2025-12-30 at 9 36 56 PM" src="https://github.com/user-attachments/assets/5d9df632-b154-41e3-8b4b-841c511f29b6" />
