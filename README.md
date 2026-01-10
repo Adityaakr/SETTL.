@@ -251,6 +251,9 @@ cd SETTL.
 # 2. Install dependencies
 npm install
 
+# Compile contracts first (optional, deploy script will compile)
+npm run compile
+
 # 3. Set up environment variables
 cp .env.example .env  # Create .env file and fill in your values
 
@@ -275,8 +278,6 @@ cd SETTL.
 
 ```bash
 npm install
-
-npm run compile
 ```
 
 This installs:
