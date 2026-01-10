@@ -271,10 +271,12 @@ git clone https://github.com/Adityaakr/SETTL..git
 cd SETTL.
 ```
 
-### Step 2: Install Dependencies
+### Step 2: Install Dependencies & Compile
 
 ```bash
 npm install
+
+npm run compile
 ```
 
 This installs:
