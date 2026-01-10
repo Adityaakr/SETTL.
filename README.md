@@ -251,13 +251,13 @@ cd SETTL.
 # 2. Install dependencies
 npm install
 
-# Compile contracts first (optional, deploy script will compile)
+# 3. Compile contracts first (optional, deploy script will compile)
 npm run compile
 
-# 3. Set up environment variables
+# 4. Set up environment variables
 cp .env.example .env  # Create .env file and fill in your values
 
-# 4. Start development server
+# 5. Start development server
 npm run dev
 ```
 
@@ -274,7 +274,7 @@ git clone https://github.com/Adityaakr/SETTL..git
 cd SETTL.
 ```
 
-### Step 2: Install Dependencies & Compile
+### Step 2: Install Dependencies
 
 ```bash
 npm install
